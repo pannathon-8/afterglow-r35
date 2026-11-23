@@ -23,7 +23,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffbc93;outline-offse
 @keyframes flash{0%{opacity:1}100%{opacity:0}}
 
 /* ---------- Header + hearts ---------- */
-header{position:fixed;top:var(--pad);left:var(--pad);right:var(--pad);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
+header{position:fixed;top:var(--pad);left:max(var(--pad),env(safe-area-inset-left,0px));right:max(var(--pad),env(safe-area-inset-right,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
 .brand{font-style:italic;font-weight:900;letter-spacing:.09em;font-size:clamp(16px,3vw,28px);line-height:1}
 .brand b{color:var(--accent);font-weight:900}
 .road-name{display:block;margin-top:9px;color:var(--ink);font:700 11px var(--mono);letter-spacing:.2em;text-shadow:0 1px 4px #000}
@@ -32,9 +32,10 @@ header{position:fixed;top:var(--pad);left:var(--pad);right:var(--pad);display:fl
 .heart.lost{fill:#ffffff14;stroke:#ffffff55}
 .heart.pop{animation:pop .6s ease-out}
 @keyframes pop{0%{transform:scale(1.5);fill:#fff}100%{transform:scale(1)}}
-.actions{display:flex;gap:7px;pointer-events:auto}
-.action{min-width:42px;min-height:40px;padding:6px 11px;background:#121821de;border:1px solid var(--line);border-radius:7px;font:700 11px var(--mono);letter-spacing:.06em}
+.actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;pointer-events:auto;min-width:0}
+.action{min-width:40px;min-height:38px;padding:6px 10px;background:#121821de;border:1px solid var(--line);border-radius:7px;font:700 11px/1 var(--mono);letter-spacing:.05em;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
 .action:hover{background:#3b3435}
+#camLock[aria-pressed=true]{border-color:#ffac72b3;color:var(--accent);background:#261b18e6}
 .action svg{width:16px;height:16px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.6}
 body:has(#startCard:not([hidden])) header{visibility:hidden}
 
@@ -168,7 +169,8 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
   .hud{width:112px}.hud .dial-copy{padding-top:12%}.hud .speed{font-size:32px}.hud .dial-copy .unit{font-size:9px;margin-top:2px}.hud .gear{font-size:14px;margin-top:2px}
   .trip{min-width:0}.trip .distance{font-size:25px}
 }
-@media(max-width:420px){.road-name{letter-spacing:.08em}.action{padding:5px 8px;min-width:38px}.hud{width:140px}.zone small{display:none}.zone{min-height:68px}}
+@media(max-width:520px){header{gap:8px}.road-name{font-size:10px;letter-spacing:.08em;margin-top:6px}.hearts{margin-top:7px}.actions{gap:5px}.action{padding:5px 7px;min-width:34px;min-height:34px;font-size:10px;letter-spacing:.03em;border-radius:6px}}
+@media(max-width:420px){.hud{width:140px}.zone small{display:none}.zone{min-height:68px}}
 
 /* start screen on short landscape screens + portrait phones */
 @media(max-height:520px){
@@ -206,6 +208,7 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
   </div>
   <div id="actions" class="actions" hidden>
     <button class="action" id="view" title="Switch camera (C)" aria-label="Switch camera">CAM <span id="cam">01</span></button>
+    <button class="action" id="camLock" title="Lock camera angle (L)" aria-label="Lock camera angle" aria-pressed="false">FREE</button>
     <button class="action" id="sound" title="Toggle sound (M)" aria-label="Toggle sound" aria-pressed="true">SOUND ON</button>
     <button class="action" id="pause" title="Pause (P)" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
   </div>
@@ -282,7 +285,7 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
         <button class="drive" id="start">START DRIVE <span aria-hidden="true">↗</span></button>
         <button class="secondary" id="boardToggle" aria-expanded="false" aria-controls="boardPanel">LEADERBOARD</button>
       </div>
-      <div class="help desktop-help"><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>Drag the mouse to look around &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>P</kbd> pause</div>
+      <div class="help desktop-help"><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>Drag the mouse to look around &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>L</kbd> lock view &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>P</kbd> pause</div>
     </div>
   </div>
 

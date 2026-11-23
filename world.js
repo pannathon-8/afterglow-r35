@@ -12,7 +12,10 @@ const vector = (x, y, z) => new THREE.Vector3(x, y, z);
 const material = (color, roughness = .78, metalness = 0) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness });
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xc2a5a0, .00148);
+const fogCoastColor = new THREE.Color(0xc99c8e);
+const fogValleyColor = new THREE.Color(0x8e8099);
+const fogViaductColor = new THREE.Color(0xb9827c);
+scene.fog = new THREE.FogExp2(0xc99c8e, .00138);
 const camera = new THREE.PerspectiveCamera(59, 1, .06, 6500);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
@@ -29,26 +32,26 @@ function updateRenderScale(seconds,now){
   scaleCheck=now+2400;
 }
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.03;
+renderer.toneMappingExposure = 1.06;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.querySelector('#stage').append(renderer.domElement);
 const sunDirection = vector(-.48, .205, 1).normalize();
-const sun = new THREE.DirectionalLight(0xffcc98, 3.05);
+const sun = new THREE.DirectionalLight(0xffbe82, 3.35);
 sun.castShadow = true;
-Object.assign(sun.shadow.camera,{left:-36,right:36,top:28,bottom:-28,near:95,far:265});
+Object.assign(sun.shadow.camera,{left:-32,right:32,top:24,bottom:-24,near:75,far:245});
 sun.shadow.camera.updateProjectionMatrix();
-sun.shadow.mapSize.set(1024,1024);
-sun.shadow.normalBias = .035;
-sun.shadow.bias = -.00018;
-scene.add(sun, new THREE.HemisphereLight(0xbddfff, 0x7d6659, 1.26));
-const fill = new THREE.DirectionalLight(0xffc6a0, .85);
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.normalBias = .022;
+sun.shadow.bias = -.00014;
+scene.add(sun, new THREE.HemisphereLight(0x9ecbff, 0x6b4d44, 1.18));
+const fill = new THREE.DirectionalLight(0xff9e75, .95);
 fill.position.set(2, 5, -9);
 scene.add(fill);
 
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false,
-  uniforms: { sunDir: { value: sunDirection }, valley: { value: 0 } },
+  uniforms: { sunDir: { value: sunDirection }, valley: { value: 0 }, viaduct: { value: 0 } },
   vertexShader: `
     varying vec3 ray;
     void main() {
@@ -59,6 +62,7 @@ const skyMat = new THREE.ShaderMaterial({
     varying vec3 ray;
     uniform vec3 sunDir;
     uniform float valley;
+    uniform float viaduct;
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
     float noise(vec2 p){
       vec2 i=floor(p), f=fract(p);
@@ -72,57 +76,91 @@ const skyMat = new THREE.ShaderMaterial({
       vec3 d=normalize(ray);
       float h=max(d.y,0.);
       float hot=max(dot(d,sunDir),0.);
-      vec3 horizon=mix(vec3(.67,.39,.26),vec3(.53,.40,.44),valley);
-      vec3 sky=mix(horizon,vec3(.054,.205,.414),pow(smoothstep(0.,.66,h),.35));
-      sky+=vec3(1.5,.48,.145)*pow(hot,26.)*(.65+.35*exp(-7.*h));
-      sky+=vec3(3.5,1.25,.51)*pow(hot,380.);
-      sky+=vec3(12.,7.,3.)*smoothstep(.99955,.99974,hot);
-      vec2 uv=d.xz/(h+.115)*1.45;
+      float azGlow=max(dot(normalize(d.xz+1e-5),normalize(sunDir.xz)),0.);
+      vec3 coastHorizon=vec3(.74,.38,.25);
+      vec3 valleyHorizon=vec3(.52,.38,.46);
+      vec3 viaductHorizon=vec3(.78,.36,.31);
+      vec3 horizon=mix(mix(coastHorizon,valleyHorizon,valley),viaductHorizon,viaduct);
+      vec3 midGlow=mix(vec3(.48,.23,.33),vec3(.34,.24,.42),valley*.7);
+      vec3 zenith=mix(vec3(.042,.168,.395),vec3(.038,.135,.335),valley);
+      vec3 sky=mix(horizon,midGlow,pow(smoothstep(0.,.28,h),.62));
+      sky=mix(sky,zenith,pow(smoothstep(.08,.74,h),.46));
+      sky+=vec3(.46,.16,.09)*exp(-14.*h)*(.28+.72*pow(azGlow,2.4));
+      sky+=vec3(1.62,.52,.155)*pow(hot,18.)*(.66+.34*exp(-6.5*h));
+      sky+=vec3(.92,.31,.22)*pow(hot,6.)*exp(-4.5*h)*.42;
+      sky+=vec3(3.85,1.38,.54)*pow(hot,340.);
+      sky+=vec3(13.5,8.1,3.5)*smoothstep(.99952,.99975,hot);
+      vec2 uv=d.xz/(h+.112)*1.42;
       float billow=fractal(uv+vec2(9.2,3.4));
-      float cloud=smoothstep(.51,.66,billow)*smoothstep(.013,.09,h)*(.84+.16*noise(uv*4.));
-      float lining=smoothstep(.037,.34,billow-fractal(uv+.14*sunDir.xz));
-      vec3 cloudColor=mix(vec3(.21,.133,.22),vec3(1.55,.53,.29),clamp(pow(hot,8.)*.42+lining,0.,1.));
-      sky=mix(sky,cloudColor,cloud*.81);
-      sky=mix(sky,horizon*.86,smoothstep(.012,-.16,d.y));
+      float highWisp=fractal(uv*2.35+vec2(-4.1,7.8));
+      float cloud=smoothstep(.49,.66,billow)*smoothstep(.012,.095,h)*(.84+.16*noise(uv*4.2));
+      float cirrus=smoothstep(.58,.76,highWisp)*smoothstep(.06,.32,h)*(1.-smoothstep(.35,.68,h))*.42;
+      float lining=smoothstep(.032,.33,billow-fractal(uv+.145*sunDir.xz));
+      vec3 darkCloud=mix(vec3(.20,.125,.22),vec3(.16,.13,.23),valley);
+      vec3 rimCloud=mix(vec3(1.68,.58,.30),vec3(1.82,.48,.34),viaduct*.6);
+      vec3 cloudColor=mix(darkCloud,rimCloud,clamp(pow(hot,6.)*.46+lining*1.08,0.,1.));
+      sky=mix(sky,cloudColor,cloud*.83);
+      vec3 cirrusColor=mix(vec3(.48,.31,.39),vec3(1.45,.66,.38),clamp(pow(hot,4.)*.65+.25,0.,1.));
+      sky=mix(sky,cirrusColor,cirrus);
+      sky=mix(sky,horizon*.84,(1.-smoothstep(-.16,.012,d.y)));
       float coastAngle=atan(d.x,d.z);
       vec2 dir = vec2(cos(coastAngle),sin(coastAngle));
-      float farRidge=.04+.14*fractal(dir*9.)+.027*sin(coastAngle*14.);
-      float midRidge=.012+.09*fractal(dir*18.+77.)+.02*sin(coastAngle*11.+1.);
-      sky=mix(sky,vec3(.54,.385,.386),.72*(1.-smoothstep(farRidge-.001,farRidge+.001,d.y)));
-      sky=mix(sky,vec3(.325,.308,.368),.65*(1.-smoothstep(midRidge-.001,midRidge+.001,d.y)));
+      float farRidge=.046+.145*fractal(dir*8.8)+.028*sin(coastAngle*14.);
+      float midRidge=.016+.095*fractal(dir*17.5+77.)+.021*sin(coastAngle*11.+1.);
+      float nearRidge=.004+.052*fractal(dir*29.+31.)+.012*sin(coastAngle*19.+2.4);
+      vec3 farCol=mix(vec3(.56,.38,.39),vec3(.44,.35,.43),valley)+vec3(.22,.08,.03)*pow(azGlow,3.);
+      vec3 midCol=mix(vec3(.34,.29,.36),vec3(.27,.26,.35),valley)+vec3(.12,.04,.02)*pow(azGlow,4.);
+      vec3 nearCol=mix(vec3(.21,.19,.26),vec3(.17,.18,.25),valley);
+      float farMask=1.-smoothstep(farRidge-.0018,farRidge+.0018,d.y);
+      float midMask=1.-smoothstep(midRidge-.0015,midRidge+.0015,d.y);
+      float nearMask=1.-smoothstep(nearRidge-.0012,nearRidge+.0012,d.y);
+      sky=mix(sky,mix(farCol,horizon,exp(-24.*max(d.y,0.))*.38),.76*farMask);
+      sky=mix(sky,midCol,.72*midMask);
+      sky=mix(sky,nearCol,.64*nearMask);
       gl_FragColor=vec4(sky,1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
-    }`.replace('smoothstep(.012,-.16,d.y)','(1.-smoothstep(-.16,.012,d.y))')
+    }`
 });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(3800, 32, 18), skyMat);
 sky.frustumCulled = false;
 sky.renderOrder = -2;
 scene.add(sky);
 
-// A small studio reflection probe adds a soft horizon line to the car's paint.
+// High-contrast studio PMREM environment reflection probe for automotive clearcoat & glass.
 const studio = new THREE.Scene();
-studio.background = new THREE.Color(0x374862);
+studio.background = new THREE.Color(0x263854);
 const reflectionSky = sky.clone();
 reflectionSky.scale.setScalar(.007);
 studio.add(reflectionSky);
-const reflectedGround = new THREE.Mesh(new THREE.CircleGeometry(22,48),new THREE.MeshBasicMaterial({color:0x282d31}));
+const reflectedGround = new THREE.Mesh(new THREE.CircleGeometry(24,48),new THREE.MeshBasicMaterial({color:0x1b1f24}));
 reflectedGround.rotation.x=-Math.PI/2;
 reflectedGround.position.y=-1.8;
 studio.add(reflectedGround);
-const softbox = new THREE.Mesh(new THREE.PlaneGeometry(22, 7),
-  new THREE.MeshBasicMaterial({ color: new THREE.Color(3.5, 1.5, .8), side: THREE.DoubleSide }));
-softbox.position.set(-11, 5, 12);
+const horizonBand = new THREE.Mesh(
+  new THREE.CylinderGeometry(21, 21, 3.8, 48, 1, true),
+  new THREE.MeshBasicMaterial({ color: new THREE.Color(2.15, .92, .52), side: THREE.DoubleSide })
+);
+horizonBand.position.y = .75;
+studio.add(horizonBand);
+const softbox = new THREE.Mesh(new THREE.PlaneGeometry(24, 7.6),
+  new THREE.MeshBasicMaterial({ color: new THREE.Color(4.2, 1.82, .88), side: THREE.DoubleSide }));
+softbox.position.set(-11, 5.2, 12);
 softbox.lookAt(0, 0, 0);
 studio.add(softbox);
-const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(40, 22),
-  new THREE.MeshBasicMaterial({ color: 0x99b6da, side: THREE.DoubleSide }));
+const rimCard = new THREE.Mesh(new THREE.PlaneGeometry(20, 5.8),
+  new THREE.MeshBasicMaterial({ color: new THREE.Color(1.95, .82, .58), side: THREE.DoubleSide }));
+rimCard.position.set(12, 4.2, -11);
+rimCard.lookAt(0, 0, 0);
+studio.add(rimCard);
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(42, 24),
+  new THREE.MeshBasicMaterial({ color: 0x8cb4e6, side: THREE.DoubleSide }));
 ceiling.position.set(0, 16, 0);
 ceiling.rotation.x = Math.PI / 2;
 studio.add(ceiling);
 const generator = new THREE.PMREMGenerator(renderer);
-scene.environment = generator.fromScene(studio, .14, .1, 100).texture;
-scene.environmentIntensity = .93;
+scene.environment = generator.fromScene(studio, .12, .1, 100).texture;
+scene.environmentIntensity = 1.08;
 generator.dispose();
 
 const roadWidth = 6.45;
@@ -183,13 +221,16 @@ function landscapeTexture(){
 }
 const hillsideDetail=landscapeTexture();
 function grainTexture() {
+  const size = 256;
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 128;
+  canvas.width = canvas.height = size;
   const context = canvas.getContext('2d');
-  const data = context.createImageData(128, 128);
-  for (let i = 0; i < 128 * 128; i++) {
-    const p = 105 + rand(i * 2.88) * 51 + (rand(i * 7.2) > .99 ? 43 : 0);
-    data.data.set([p, p * .97, p * .96, 255], i * 4);
+  const data = context.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const base = 98 + rand(i * 2.88) * 54;
+    const aggregate = rand(i * 7.2) > .965 ? 46 : (rand(i * 5.1) < .06 ? -24 : 0);
+    const p = clamp(base + aggregate, 52, 235);
+    data.data.set([p, p * .97, p * .95, 255], i * 4);
   }
   context.putImageData(data, 0, 0);
   const texture = new THREE.CanvasTexture(canvas);
@@ -198,59 +239,128 @@ function grainTexture() {
   texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   return texture;
 }
-const asphalt = material(0x90979a, .86);
+const asphalt = material(0x888f94, .82, .04);
 asphalt.map = grainTexture();
 asphalt.onBeforeCompile = shader => {
-  shader.vertexShader = 'varying vec2 paving;\n'+shader.vertexShader.replace('#include <begin_vertex>',
-    '#include <begin_vertex>\npaving = uv * 4.;');
-  shader.fragmentShader = 'varying vec2 paving;\n'+shader.fragmentShader.replace('#include <color_fragment>',`
+  shader.uniforms.sunDir = { value: sunDirection };
+  shader.vertexShader = 'varying vec2 paving; varying vec3 vAsphaltWorld;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\npaving = uv * 4.;\nvAsphaltWorld = (modelMatrix * vec4(position, 1.)).xyz;');
+  shader.fragmentShader = 'uniform vec3 sunDir; varying vec2 paving; varying vec3 vAsphaltWorld;\n' + shader.fragmentShader
+    .replace('#include <color_fragment>', `
     #include <color_fragment>
     float lane = mod(paving.x+2.025,4.05)-2.025;
-    float tracks=exp(-pow((abs(lane)-.82)*2.8,2.));
-    float joint=abs(mod(paving.y+.12*sin(paving.x*2.8)+.07*sin(paving.x*6.1),31.)-15.5);
-    float skid=sin(paving.y*.058+paving.x*.19)*.5+.5;
-    diffuseColor.rgb *= (1.-.23*tracks)*(.94+.12*skid);
-    diffuseColor.rgb *= mix(.43,1.,smoothstep(.012,max(.045,fwidth(paving.y)),joint));
-    diffuseColor.rgb += vec3(.012,.012,.013)*exp(-abs(abs(paving.x)-5.9)*1.2);
-    float tar=abs(abs(paving.x)-4.94-.14*sin(paving.y*.46)-.09*sin(paving.y*1.17));
-    diffuseColor.rgb*=1.-.35*(1.-smoothstep(.012,max(.039,fwidth(paving.x)),tar))
-      *smoothstep(.16,.6,sin(paving.y*.081));
+    float tracks = exp(-pow((abs(lane)-.82)*2.95,2.));
+    float centerWear = exp(-pow(lane*1.4,2.));
+    float microGrit = fract(sin(dot(floor(paving*42.),vec2(127.1,311.7)))*43758.5453);
+    float joint = abs(mod(paving.y+.12*sin(paving.x*2.8)+.07*sin(paving.x*6.1),31.)-15.5);
+    float skid = sin(paving.y*.058+paving.x*.19)*.5+.5;
+    diffuseColor.rgb *= (1.-.26*tracks+.04*centerWear)*(.92+.13*skid)+(.035*(microGrit-.5));
+    diffuseColor.rgb *= mix(.39,1.,smoothstep(.012,max(.045,fwidth(paving.y)),joint));
+    diffuseColor.rgb += vec3(.018,.016,.015)*exp(-abs(abs(paving.x)-5.9)*1.25);
+    float tar = abs(abs(paving.x)-4.94-.14*sin(paving.y*.46)-.09*sin(paving.y*1.17));
+    float tar2 = abs(abs(paving.x)-2.025-.08*sin(paving.y*.31+.7)-.05*cos(paving.y*.89));
+    float tarLine = (1.-smoothstep(.011,max(.038,fwidth(paving.x)),tar))*smoothstep(.14,.58,sin(paving.y*.081))
+      + .75*(1.-smoothstep(.009,max(.032,fwidth(paving.x)),tar2))*smoothstep(.25,.72,cos(paving.y*.063));
+    diffuseColor.rgb *= 1.-.38*clamp(tarLine,0.,1.);
+    vec3 viewDirW = normalize(cameraPosition - vAsphaltWorld);
+    float ndotv = clamp(viewDirW.y, .002, 1.);
+    float fresnel = pow(1. - ndotv, 3.4);
+    vec3 sunRefl = reflect(-normalize(sunDir), vec3(0., 1., 0.));
+    float specAlign = max(dot(sunRefl, viewDirW), 0.);
+    float roadSheen = (pow(specAlign, 12.) * .42 + pow(specAlign, 56.) * .92) * (.38 + .62 * fresnel);
+    float trackPolish = .82 + .78 * tracks + .45 * clamp(tarLine, 0., 1.) + .22 * (microGrit - .5);
+    diffuseColor.rgb += vec3(1.08, .56, .24) * roadSheen * trackPolish * .38;
+    diffuseColor.rgb += vec3(.38, .22, .14) * fresnel * pow(max(dot(viewDirW, -normalize(sunDir)), 0.), 3.5) * (.28 + .46 * tracks);
+  `)
+    .replace('#include <roughnessmap_fragment>', `
+    #include <roughnessmap_fragment>
+    float rLane = mod(paving.x+2.025,4.05)-2.025;
+    float rTracks = exp(-pow((abs(rLane)-.82)*2.95,2.));
+    roughnessFactor *= clamp(.94 - .24 * rTracks, .44, 1.);
   `);
 };
-const shoulder = material(0x4b484a, .91);
-const whiteLine = material(0xe0d7ba, .86);
-const goldLine = material(0xefa744, .88);
-const soil = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
+const shoulder = material(0x454245, .89, .05);
+shoulder.map = asphalt.map;
+shoulder.onBeforeCompile = shader => {
+  shader.vertexShader = 'varying vec2 vShoulderUV;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\nvShoulderUV = uv * 4.;');
+  shader.fragmentShader = 'varying vec2 vShoulderUV;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+    #include <color_fragment>
+    float edgeDist = abs(vShoulderUV.x);
+    float rumble = step(.62, fract(vShoulderUV.y * 1.4)) * smoothstep(6.18, 6.32, edgeDist) * (1. - smoothstep(6.48, 6.62, edgeDist));
+    float gravel = .88 + .24 * fract(sin(dot(floor(vShoulderUV * 26.), vec2(91.7, 211.3))) * 43758.5453);
+    diffuseColor.rgb *= gravel * (1. - .22 * rumble) * (1. - .18 * smoothstep(6.8, 7.35, edgeDist));
+  `);
+};
+const whiteLine = material(0xe8dfc4, .76);
+const goldLine = material(0xf4ad49, .78);
+const soil = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96, side: THREE.DoubleSide });
 soil.onBeforeCompile = shader => {
-  shader.uniforms.rockMap={value:hillsideDetail};
+  shader.uniforms.rockMap = { value: hillsideDetail };
+  shader.uniforms.sunDir = { value: sunDirection };
   shader.vertexShader = 'varying vec3 earthUV;\n' + shader.vertexShader.replace('#include <begin_vertex>',
     '#include <begin_vertex>\nearthUV = position;');
-  shader.fragmentShader = 'uniform sampler2D rockMap; varying vec3 earthUV;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+  shader.fragmentShader = 'uniform sampler2D rockMap; uniform vec3 sunDir; varying vec3 earthUV;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
     #include <color_fragment>
-    vec2 st=vec2(earthUV.x+.71*earthUV.z,earthUV.y+.23*earthUV.z);
-    float grain = texture2D(rockMap,st*.037).r;
-    float mottling = texture2D(rockMap,st*.008).r;
-    float escarpment=smoothstep(.15,.65,1.-abs(normalize(cross(dFdx(earthUV),dFdy(earthUV))).y));
-    float strata = sin(st.y*2.1+2.*sin(st.x*.15)+mottling*21.);
-    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.23,.209,.196)*(.89+.11*strata),escarpment*.84);
-    diffuseColor.rgb*=.44+.68*grain+.64*mottling;
+    vec2 st = vec2(earthUV.x+.71*earthUV.z,earthUV.y+.23*earthUV.z);
+    float grain = texture2D(rockMap,st*.042).r;
+    float mottling = texture2D(rockMap,st*.0085).r;
+    vec3 faceN = normalize(cross(dFdx(earthUV),dFdy(earthUV)));
+    if (faceN.y < 0.) faceN = -faceN;
+    float escarpment = smoothstep(.14,.62,1.-abs(faceN.y));
+    float strata = sin(st.y*2.35+2.2*sin(st.x*.16)+mottling*22.)*.65 + .35*cos(st.y*5.6-st.x*.28);
+    float crevice = smoothstep(.35,-.45,strata)*escarpment;
+    float valleyAO = mix(.68,1.,smoothstep(-22.,14.,earthUV.y))*(1.-.26*crevice);
+    float sunSlope = pow(max(dot(faceN,normalize(sunDir)),0.),1.45);
+    vec3 cliffRock = mix(vec3(.20,.18,.18),vec3(.34,.27,.23),smoothstep(-.6,.7,strata));
+    diffuseColor.rgb = mix(diffuseColor.rgb,cliffRock,escarpment*.86);
+    diffuseColor.rgb *= (.42+.68*grain+.62*mottling)*valleyAO;
+    diffuseColor.rgb += vec3(.22,.11,.05)*sunSlope*(.45+.55*escarpment);
   `);
 };
-const water = new THREE.MeshStandardMaterial({ color: 0x435f80, roughness: .35, metalness: .39, side: THREE.DoubleSide });
+const waterUniforms = { uTime: { value: 0 }, sunDir: { value: sunDirection } };
+const water = new THREE.MeshStandardMaterial({ color: 0x3b597a, roughness: .25, metalness: .46, side: THREE.DoubleSide });
 water.onBeforeCompile = shader => {
-  shader.vertexShader = 'varying vec3 worldPoint;\n' + shader.vertexShader.replace('#include <begin_vertex>',
-    '#include <begin_vertex>\nworldPoint = (modelMatrix * vec4(position,1.)).xyz;');
-  shader.fragmentShader = 'varying vec3 worldPoint;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+  shader.uniforms.uTime = waterUniforms.uTime;
+  shader.uniforms.sunDir = waterUniforms.sunDir;
+  shader.vertexShader = 'varying vec3 worldPoint; varying float vShoreX;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\nworldPoint = (modelMatrix * vec4(position,1.)).xyz;\nvShoreX = position.x - 695.;');
+  shader.fragmentShader = 'uniform float uTime; uniform vec3 sunDir; varying vec3 worldPoint; varying float vShoreX;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
     #include <color_fragment>
-    float wave = sin(worldPoint.z*1.2 + sin(worldPoint.x*.17)*1.8)
-      * sin(worldPoint.z*.32-worldPoint.x*.57);
-    float glint = exp(-abs(worldPoint.x + 151.) * .013);
-    diffuseColor.rgb *= .74 + .22 * wave;
-    diffuseColor.rgb += vec3(.39,.128,.055)*pow(max(wave,0.),5.)*glint;
+    float t = uTime;
+    float swell1 = sin(worldPoint.z*1.12 + t*1.35 + sin(worldPoint.x*.17 + t*.38)*1.9);
+    float swell2 = sin(worldPoint.z*.33 - worldPoint.x*.55 - t*1.08);
+    float ripple = sin(worldPoint.z*2.65 + worldPoint.x*1.85 + t*2.7)*cos(worldPoint.z*1.6 - worldPoint.x*2.1 - t*2.1);
+    float wave = swell1 * swell2 + .26 * ripple;
+    vec3 viewW = normalize(cameraPosition - worldPoint);
+    float fresnel = pow(1. - clamp(viewW.y, 0., 1.), 3.1);
+    float glint = exp(-abs(worldPoint.x + 151.) * .0115);
+    float azAlign = pow(max(dot(normalize(sunDir.xz), normalize(-viewW.xz + 1e-5)), 0.), 11.);
+    float sunPath = max(glint, azAlign * .88);
+    diffuseColor.rgb *= .72 + .23 * wave;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.48, .33, .35), fresnel * .42);
+    float sparkle = pow(max(wave, 0.), 4.6) + .62 * pow(max(ripple, 0.), 7.);
+    diffuseColor.rgb += vec3(.86, .34, .13) * sparkle * sunPath * .68;
+    diffuseColor.rgb += vec3(1.65, .86, .40) * pow(max(wave + .22 * ripple, 0.), 10.) * sunPath * .55;
+    float shoreZone = max(smoothstep(-35., -7., worldPoint.x), smoothstep(0., 28., vShoreX));
+    float surf = .5 + .5 * sin(worldPoint.z*.21 - worldPoint.x*.62 - t*1.75 + sin(worldPoint.z*.08)*2.4);
+    float foam = shoreZone * smoothstep(.42, .84, surf + .38 * shoreZone);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.24, .45, .50), shoreZone * .36);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.93, .85, .77), clamp(foam * .66, 0., .74));
   `);
 };
-const guard = material(0x8b9294, .48, .42);
-const posts = material(0x454148);
+const guard = material(0x98a1a5, .36, .64);
+guard.onBeforeCompile = shader => {
+  shader.vertexShader = 'varying vec3 vGuardPos;\n' + shader.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\nvGuardPos = position;');
+  shader.fragmentShader = 'varying vec3 vGuardPos;\n' + shader.fragmentShader.replace('#include <color_fragment>', `
+    #include <color_fragment>
+    float wRib = cos(vGuardPos.y * 18.849);
+    float patina = .92 + .12 * wRib;
+    diffuseColor.rgb *= patina;
+  `);
+};
+const posts = material(0x454148, .72, .18);
 const bark = material(0x56443c);
 function pineNeedles() {
   const canvas = document.createElement('canvas');
@@ -285,17 +395,17 @@ function pineNeedles() {
   return new THREE.MeshLambertMaterial({ map:t, alphaTest:.36, side:THREE.DoubleSide });
 }
 const treeMat = pineNeedles();
-const rockMat = material(0x9d8980, 1);
-const reflector = new THREE.MeshStandardMaterial({ color: 0xffd08b, emissive: 0xb75010, emissiveIntensity: .65 });
-const greenSign = material(0x234947, .66);
+const rockMat = material(0x9d8980, .94);
+const reflector = new THREE.MeshStandardMaterial({ color: 0xffd08b, emissive: 0xc85814, emissiveIntensity: .85 });
+const greenSign = material(0x234947, .62);
 const size = 160;
 const chunks = new Map();
 const dummy = new THREE.Object3D();
 const groundColor = new THREE.Color();
-const dryColor = new THREE.Color(0x717547);
-const stoneColor = new THREE.Color(0x686372);
-const pineColor = new THREE.Color(0x435d39);
-const coastColor = new THREE.Color(0x7b754b);
+const dryColor = new THREE.Color(0x747646);
+const stoneColor = new THREE.Color(0x666171);
+const pineColor = new THREE.Color(0x3f5b37);
+const coastColor = new THREE.Color(0x7e7449);
 
 function meshFrom(group, positions, indices, material, uv, colors) {
   const geometry = new THREE.BufferGeometry();
@@ -325,8 +435,8 @@ function ribbon(group, start, stop, x1, x2, step, mat, rise = .008) {
 function batch(group, geometries, records, mat) {
   if (!records.length) return;
   const inst = new THREE.InstancedMesh(geometries, mat, records.length);
-  inst.castShadow = mat !== whiteLine && mat !== reflector;
-  inst.receiveShadow = true;
+  inst.castShadow = mat !== whiteLine && mat !== reflector && !mat.transparent;
+  inst.receiveShadow = !mat.transparent;
   records.forEach(([x, y, z, sx, sy, sz, yaw, color], index) => {
     dummy.position.set(x, y, z);
     dummy.scale.set(sx, sy, sz);
@@ -435,7 +545,7 @@ function makeChunk(id) {
   scene.add(group);
   return group;
 }
-function updateWorld(z) {
+function updateWorld(z, now = 0) {
   const base = Math.floor(z / size);
   for (const [id, group] of chunks) {
     if (id >= base - 1 && id <= base + 9) continue;
@@ -450,5 +560,15 @@ function updateWorld(z) {
     if (!chunks.has(id)) chunks.set(id, makeChunk(id));
     chunks.get(id).position.z = id * size - z;
   }
-  skyMat.uniforms.valley.value = valleyAt(z);
+  const timeSec = (now || 0) * .001;
+  waterUniforms.uTime.value = timeSec;
+  if (typeof beaconMat !== 'undefined') beaconMat.emissiveIntensity = 3.4 + 1.2 * Math.sin(timeSec * 3.8);
+  const valley = valleyAt(z);
+  const nearestBridge = Math.max(10000, Math.round((z - 320) / 10000) * 10000);
+  const viaduct = smooth(nearestBridge - 850, nearestBridge - 40, z)
+    * (1 - smooth(nearestBridge + 680, nearestBridge + 1250, z));
+  skyMat.uniforms.valley.value = valley;
+  skyMat.uniforms.viaduct.value = viaduct;
+  scene.fog.color.copy(fogCoastColor).lerp(fogValleyColor, valley).lerp(fogViaductColor, viaduct);
+  scene.fog.density = mix(mix(.00138, .00142, valley), .00125, viaduct);
 }

@@ -2,7 +2,7 @@ const element = id => document.getElementById(id);
 const ui = Object.fromEntries([
   'header', 'actions', 'trip', 'hud', 'touch', 'overlay', 'startCard', 'pauseCard', 'overCard',
   'pauseTitle', 'pauseText', 'start', 'resume', 'restart', 'garagePause', 'again', 'garageOver',
-  'view', 'cam', 'sound', 'pause', 'roadName', 'speed', 'gear', 'rpm', 'rpmBars', 'speedArc',
+  'view', 'cam', 'camLock', 'sound', 'pause', 'roadName', 'speed', 'gear', 'rpm', 'rpmBars', 'speedArc',
   'ticks', 'distance', 'best', 'toast', 'hearts', 'flash', 'steerPad', 'wheelSvg', 'pedalGas',
   'pedalBrake', 'driverForm', 'driverName', 'saveName', 'nameHint', 'driverView', 'driverInitial',
   'driverTitle', 'driverBest', 'driverRuns', 'changeName', 'swatches', 'paintName', 'zones',
@@ -41,6 +41,13 @@ const zones = [
   { id: 'coast', label: coastLabel, startZ: 0 },
   { id: 'valley', label: valleyLabel, startZ: 6900 },
   { id: 'viaduct', label: viaductLabel, startZ: 9720 }
+];
+const cameraPresets = [
+  { code: '01', name: 'CHASE', toast: 'CAM 01 · CHASE', locked: false },
+  { code: '02', name: 'COCKPIT', toast: 'CAM 02 · COCKPIT', locked: false },
+  { code: '03', name: 'HOOD', toast: 'CAM 03 · HOOD (LOCKED)', locked: true },
+  { code: '04', name: 'BUMPER', toast: 'CAM 04 · BUMPER (LOCKED)', locked: true },
+  { code: '05', name: 'HERO WIDE', toast: 'CAM 05 · HERO WIDE', locked: true }
 ];
 const km = metres => (metres / 1000).toFixed(2);
 const damp = (value, target, rate, dt) => mix(value, target, 1 - Math.exp(-rate * dt));
@@ -123,7 +130,8 @@ let susPitch = 0;
 let susPitchV = 0;
 let susRoll = 0;
 let susRollV = 0;
-let cockpitView = false;
+let camIndex = 0;
+let cameraLocked = false;
 let trafficSequence = 0;
 let impactCooldown = 0;
 let lastRoute = 'coast';
@@ -649,14 +657,32 @@ function goGarage() {
   menu('ready');
 }
 
+function refreshCameraUI() {
+  const preset = cameraPresets[camIndex] || cameraPresets[0];
+  ui.cam.textContent = preset.code;
+  ui.view.setAttribute('aria-pressed', String(camIndex > 0));
+  if (ui.camLock) {
+    ui.camLock.textContent = cameraLocked ? 'LOCKED' : 'FREE';
+    ui.camLock.setAttribute('aria-pressed', String(cameraLocked));
+  }
+}
+
 function toggleCamera() {
   if (state === 'ready') return;
-  cockpitView = !cockpitView;
+  camIndex = (camIndex + 1) % cameraPresets.length;
+  const preset = cameraPresets[camIndex];
+  cameraLocked = preset.locked;
   orbit = tilt = 0;
   snapCamera = true;
-  ui.cam.textContent = cockpitView ? '02' : '01';
-  ui.view.setAttribute('aria-pressed', String(cockpitView));
-  notice(cockpitView ? 'COCKPIT VIEW' : 'CHASE VIEW');
+  refreshCameraUI();
+  notice(preset.toast);
+}
+
+function toggleCameraLock() {
+  if (state === 'ready') return;
+  cameraLocked = !cameraLocked;
+  refreshCameraUI();
+  notice(cameraLocked ? 'CAMERA ANGLE LOCKED' : 'CAMERA FREE');
 }
 
 function routeAt(z) {
@@ -741,7 +767,7 @@ function updateDriving(dt, now) {
 
 function drawScene(dt, now) {
   const z = worldZ;
-  updateWorld(z);
+  updateWorld(z, now);
   const carX = center(z) + offset;
   const carY = roadSurfaceY(z);
   const roadYaw = yawAt(z);
@@ -792,20 +818,23 @@ function drawScene(dt, now) {
     car.root.rotation.set(-Math.atan2(grade(car.z + 1) - grade(car.z - 1), 2), yawAt(car.z), 0);
   }
 
-  const interior = cockpitView && state !== 'ready';
   const ready = state === 'ready';
+  const interior = !ready && camIndex === 1;
+  const hoodCam = !ready && camIndex === 2;
+  const bumperCam = !ready && camIndex === 3;
+  const heroWideCam = !ready && camIndex === 4;
   if (ready !== framedMenu) {
     framedMenu = ready;
     frameViewport();
   }
-  if (r35.cockpit) r35.cockpit.visible = interior;
-  if (r35.cabin) r35.cabin.visible = !interior;
+  r35.setCockpitMode ? r35.setCockpitMode(interior) : (r35.cockpit.visible = interior, r35.cabin.visible = !interior);
+  if (r35.cabin) r35.cabin.visible = !interior && !hoodCam;
   let desiredFov = 57 + speedMS * .14;
   if (interior) {
     r35.updateInterior?.(speedMS * 3.6, revs, gearIndex ? String(gearIndex) : 'N', steerVis);
     r35.root.updateMatrixWorld(true);
-    const frame = r35.cockpit?.parent || r35.body;
-    cockpitPosition.set(-.425, 1.25, -.23);
+    const frame = r35.cockpit?.parent || r35.chassis || r35.body;
+    cockpitPosition.set(-.425, 1.24, -.19);
     const lookPitch = -.06 - tilt;
     const reach = 32 * Math.cos(lookPitch);
     localLook.copy(cockpitPosition);
@@ -817,6 +846,31 @@ function drawScene(dt, now) {
     cameraPosition.copy(cockpitPosition);
     cameraLook.copy(localLook);
     desiredFov = 67 + speedMS * .08;
+  } else if (hoodCam) {
+    r35.root.updateMatrixWorld(true);
+    const frame = r35.chassis || r35.body;
+    cockpitPosition.set(0, 1.24, .42);
+    const lookPitch = -.048 - tilt * .45;
+    const reach = 32 * Math.cos(lookPitch);
+    localLook.set(-Math.sin(orbit) * reach, 1.24 + Math.sin(lookPitch) * 32, .42 + Math.cos(orbit) * reach);
+    frame.localToWorld(cockpitPosition);
+    frame.localToWorld(localLook);
+    cameraPosition.copy(cockpitPosition);
+    cameraLook.copy(localLook);
+    desiredFov = 66 + speedMS * .11;
+  } else if (bumperCam) {
+    r35.root.updateMatrixWorld(true);
+    const frame = r35.chassis || r35.body;
+    cockpitPosition.set(0, .62, 2.38);
+    const lookPitch = -.012 - clamp(tilt * .35, -.18, .12);
+    const reach = 36 * Math.cos(lookPitch);
+    const yaw = clamp(orbit, -.35, .35);
+    localLook.set(-Math.sin(yaw) * reach, .62 + Math.sin(lookPitch) * 36, 2.38 + Math.cos(yaw) * reach);
+    frame.localToWorld(cockpitPosition);
+    frame.localToWorld(localLook);
+    cameraPosition.copy(cockpitPosition);
+    cameraLook.copy(localLook);
+    desiredFov = 70 + speedMS * .12;
   } else if (ready) {
     const wide = smooth(.68, 1.45, camera.aspect);
     const turn = .59 - roadYaw + Math.sin(now / 4300) * .07;
@@ -824,6 +878,19 @@ function drawScene(dt, now) {
     cameraPosition.set(carX + Math.sin(turn) * trailing, carY + 2.24, -Math.cos(turn) * trailing);
     cameraLook.set(carX, carY + .78, -.08);
     desiredFov = mix(60, 51, wide);
+  } else if (heroWideCam) {
+    const boost = speedMS / maxSpeed;
+    const trailing = 8.4 + boost * 2.2;
+    const angle = roadYaw + .24 + orbit;
+    chasePosition.set(carX - Math.sin(angle) * trailing,
+      carY + 2.28 + boost * .38 + tilt * 1.9,
+      -Math.cos(angle) * trailing);
+    const orbitBlend = smooth(.05, .85, Math.abs(orbit));
+    chaseLook.set(mix(center(z + 15) + offset * .76, carX, .34 + .66 * orbitBlend),
+      carY + mix(1.06, .82, orbitBlend) - tilt * .85, 13 * (1 - .75 * orbitBlend));
+    cameraPosition.copy(chasePosition);
+    cameraLook.copy(chaseLook);
+    desiredFov = 54 + speedMS * .10;
   } else {
     const boost = speedMS / maxSpeed;
     const trailing = 6.9 + boost * 2.65;
@@ -837,7 +904,8 @@ function drawScene(dt, now) {
     cameraPosition.copy(chasePosition);
     cameraLook.copy(chaseLook);
   }
-  const tracking = snapCamera || interior ? 1 : 1 - Math.exp(-11 * dt);
+  const bolted = interior || hoodCam || bumperCam;
+  const tracking = snapCamera || bolted ? 1 : 1 - Math.exp(-11 * dt);
   camera.position.lerp(cameraPosition, tracking);
   camera.fov = snapCamera ? desiredFov : damp(camera.fov, desiredFov, 7, dt);
   camera.updateProjectionMatrix();
@@ -856,15 +924,16 @@ function drawScene(dt, now) {
 
 /* ---------- Input ---------- */
 const pressedKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft',
-  'ArrowDown', 'ArrowRight', 'Space', 'KeyC', 'KeyM', 'KeyP', 'Escape']);
+  'ArrowDown', 'ArrowRight', 'Space', 'KeyC', 'KeyL', 'KeyM', 'KeyP', 'Escape']);
 addEventListener('keydown', event => {
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
   if (event.ctrlKey || event.metaKey || event.altKey || !pressedKeys.has(event.code)) return;
   if (state === 'playing' || event.code === 'Escape') event.preventDefault();
-  if (event.repeat && ['KeyC', 'KeyM', 'KeyP', 'Escape'].includes(event.code)) return;
+  if (event.repeat && ['KeyC', 'KeyL', 'KeyM', 'KeyP', 'Escape'].includes(event.code)) return;
   if (event.code === 'Escape' && state === 'ready' && !ui.boardPanel.hidden) toggleBoard(false);
   else if (event.code === 'KeyC') toggleCamera();
+  else if (event.code === 'KeyL') toggleCameraLock();
   else if (event.code === 'KeyM') toggleSound();
   else if (event.code === 'KeyP' || event.code === 'Escape') pauseDrive();
   else if (state === 'playing') held.add(event.code);
@@ -889,7 +958,10 @@ surface.addEventListener('pointerdown', event => {
 });
 surface.addEventListener('pointermove', event => {
   if (!pointer || pointer.id !== event.pointerId) return;
-  const sweep = cockpitView ? 75 * Math.PI / 180 : Math.PI;
+  const sweep = camIndex === 1 ? 75 * Math.PI / 180
+    : camIndex === 2 ? 55 * Math.PI / 180
+    : camIndex === 3 ? 35 * Math.PI / 180
+    : Math.PI;
   orbit = clamp(orbit + (event.clientX - pointer.x) * .0055, -sweep, sweep);
   tilt = clamp(tilt + (event.clientY - pointer.y) * .0041, -.53, .73);
   pointer.x = event.clientX;
@@ -1102,7 +1174,7 @@ function frameDrive(now) {
       updateDriving(step, now - (steps - i - 1) * step * 1000);
     }
   }
-  if (!pointer) {
+  if (!pointer && !cameraLocked) {
     orbit = damp(orbit, 0, 2.25, dt);
     tilt = damp(tilt, 0, 2.25, dt);
   }
@@ -1122,6 +1194,7 @@ ui.garagePause.addEventListener('click', goGarage);
 ui.garageOver.addEventListener('click', goGarage);
 ui.pause.addEventListener('click', pauseDrive);
 ui.view.addEventListener('click', toggleCamera);
+ui.camLock?.addEventListener('click', toggleCameraLock);
 ui.sound.addEventListener('click', toggleSound);
 ui.boardToggle.addEventListener('click', () => toggleBoard());
 ui.boardClose.addEventListener('click', () => { toggleBoard(false); ui.boardToggle.focus({ preventScroll: true }); });
@@ -1161,7 +1234,7 @@ ui.zones.addEventListener('click', event => {
   if (button) selectZone(button.dataset.zone);
 });
 ui.sound.textContent = 'SOUND ON';
-ui.view.setAttribute('aria-pressed', 'false');
+refreshCameraUI();
 addEventListener('resize', resizeDrive);
 scene.add(sun.target);
 resizeDrive();

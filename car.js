@@ -4,8 +4,16 @@ const alloy = material(0xb8c3d0, .24, .84);
 const graphite = material(0x353c47, .34, .62);
 const silver = material(0xd2dbe0, .18, .82);
 const dashboard = material(0x1e2028, .86);
+dashboard.side = THREE.DoubleSide;
 const alcantara = material(0x171920, .92, .05);
+alcantara.side = THREE.DoubleSide;
 const stitchRed = material(0xd9322a, .48, .16);
+const ledAmber = new THREE.MeshStandardMaterial({
+  color: 0xffaa2b, emissive: 0xff7b14, emissiveIntensity: 1.35, roughness: .25, metalness: .2
+});
+const startBtnRed = new THREE.MeshStandardMaterial({
+  color: 0xff2e38, emissive: 0xd91420, emissiveIntensity: .95, roughness: .28, metalness: .24
+});
 const exhaustMat = material(0x737b8a, .26, .86);
 const burntTitanium = new THREE.MeshStandardMaterial({
   color: 0x4578f5, emissive: 0x162e75, emissiveIntensity: .42, roughness: .2, metalness: .92
@@ -732,40 +740,45 @@ function makeR35() {
     bodyPaint.needsUpdate = true;
   }
 
-  heroShell(chassis, bodyPaint);
-  const cabin = makeCabin(chassis, bodyPaint);
-  makeWing(chassis, bodyPaint);
-  makeFront(chassis, bodyPaint);
+  // exterior holds all outside bodywork & glass so setCockpitMode(true) can hide it cleanly
+  // while keeping chassis suspension pitch/roll intact for both exterior and cockpit views.
+  const exterior = new THREE.Group();
+  chassis.add(exterior);
+
+  heroShell(exterior, bodyPaint);
+  const cabin = makeCabin(exterior, bodyPaint);
+  makeWing(exterior, bodyPaint);
+  makeFront(exterior, bodyPaint);
 
   for (const side of [-1, 1]) {
     // Sculpted side skirts with carbon-fiber lower splitter lip & rear aero winglet
-    lineTrim(chassis, seal, [[side * 1.002, .282, -.92], [side * .964, .252, -.71], [side * .948, .244, .07],
+    lineTrim(exterior, seal, [[side * 1.002, .282, -.92], [side * .964, .252, -.71], [side * .948, .244, .07],
       [side * .974, .248, .70], [side * 1.024, .288, .972]], .044);
-    lineTrim(chassis, carbonMat, [[side * 1.032, .238, -.935], [side * .996, .222, -.69], [side * .982, .218, .05],
+    lineTrim(exterior, carbonMat, [[side * 1.032, .238, -.935], [side * .996, .222, -.69], [side * .982, .218, .05],
       [side * 1.004, .222, .72], [side * 1.046, .244, .982]], .020);
-    lineTrim(chassis, bodyPaint, [[side * 1.012, .304, -.918], [side * .982, .288, -.68], [side * .974, .279, .02],
+    lineTrim(exterior, bodyPaint, [[side * 1.012, .304, -.918], [side * .982, .288, -.68], [side * .974, .279, .02],
       [side * .994, .282, .71], [side * 1.028, .304, .972]], .015);
     // Side-skirt rear fin ahead of rear wheel arch
-    box(chassis, carbonMat, side * 1.022, .295, -.905, .016, .095, .14);
+    box(exterior, carbonMat, side * 1.022, .295, -.905, .016, .095, .14);
 
     // Sharper flank character crease from front fender vent to rear quarter shoulder
-    lineTrim(chassis, bodyPaint, [[side * 1.018, .785, .86], [side * .996, .802, .18], [side * 1.022, .832, -.55], [side * 1.055, .872, -1.28]], .012);
+    lineTrim(exterior, bodyPaint, [[side * 1.018, .785, .86], [side * .996, .802, .18], [side * 1.022, .832, -.55], [side * 1.055, .872, -1.28]], .012);
 
     // Iconic GT-R front fender air-extractor vent recess & horizontal fender blade
-    box(chassis, intake, side * 1.012, .615, .865, .032, .285, .135);
-    box(chassis, carbonMat, side * 1.024, .695, .868, .024, .026, .155);
-    box(chassis, bodyPaint, side * 1.026, .635, .868, .024, .032, .152);
-    box(chassis, silver, side * 1.028, .668, .875, .018, .016, .048);
+    box(exterior, intake, side * 1.012, .615, .865, .032, .285, .135);
+    box(exterior, carbonMat, side * 1.024, .695, .868, .024, .026, .155);
+    box(exterior, bodyPaint, side * 1.026, .635, .868, .024, .032, .152);
+    box(exterior, silver, side * 1.028, .668, .875, .018, .016, .048);
 
     // Door-mounted aerodynamic side mirrors with bodyPaint cap & mirror glass
-    lineTrim(chassis, seal, [[side * .847, .886, .56], [side * .951, .933, .57], [side * 1.035, .957, .585]], .034);
-    const mirror = attach(chassis, mirrorHousing, bodyPaint, side * 1.034, .983, .57, .154, .060, .114);
+    lineTrim(exterior, seal, [[side * .847, .886, .56], [side * .951, .933, .57], [side * 1.035, .957, .585]], .034);
+    const mirror = attach(exterior, mirrorHousing, bodyPaint, side * 1.034, .983, .57, .154, .060, .114);
     mirror.rotation.y = -side * .18;
-    attach(chassis, mirrorHousing, seal, side * 1.035, .978, .525, .135, .052, .080).rotation.y = -side * .17;
-    attach(chassis, mirrorHousing, mirrorGlassMat, side * 1.036, .979, .464, .106, .039, .026).rotation.y = -side * .17;
+    attach(exterior, mirrorHousing, seal, side * 1.035, .978, .525, .135, .052, .080).rotation.y = -side * .17;
+    attach(exterior, mirrorHousing, mirrorGlassMat, side * 1.036, .979, .464, .106, .039, .026).rotation.y = -side * .17;
     // Flush R35 silver door handle & door seam line
-    attach(chassis, mirrorHousing, silver, side * 1.018, .795, -.535, .017, .018, .114);
-    lineTrim(chassis, seal, [[side * 1.031, .811, -.768], [side * 1.028, .711, -.820],
+    attach(exterior, mirrorHousing, silver, side * 1.018, .795, -.535, .017, .018, .114);
+    lineTrim(exterior, seal, [[side * 1.031, .811, -.768], [side * 1.028, .711, -.820],
       [side * 1.007, .527, -.792], [side * .968, .354, -.708], [side * .953, .319, -.599]], .0045);
 
     const archPoints = axle => Array.from({ length: 21 }, (_, i) => {
@@ -773,13 +786,13 @@ function makeR35() {
       const [x, y] = heroSection(z).at(-1);
       return [side * (x + .002), y + .001, z];
     });
-    for (const axle of axles) lineTrim(chassis, seal, archPoints(axle), .011);
+    for (const axle of axles) lineTrim(exterior, seal, archPoints(axle), .011);
   }
 
   const brakeLight = new THREE.MeshStandardMaterial({
     color: 0xf92c3b, emissive: 0xff192a, emissiveIntensity: 1.25, roughness: .28
   });
-  makeRear(chassis, brakeLight);
+  makeRear(exterior, brakeLight);
 
   // Wheels & non-spinning Brembo caliper hubs attached directly to body (not chassis)
   const wheels = [];
@@ -788,156 +801,379 @@ function makeR35() {
     wheels.push(makeWheel(body, side, z));
     caliperHubs.push(makeCaliperHub(body, side, z));
   }
-  // Keep brake calipers & tire contact patches steered with front wheels without spinning on X
-  const origUpdateMatrixWorld = body.updateMatrixWorld.bind(body);
-  body.updateMatrixWorld = function (force) {
-    for (let i = 0; i < wheels.length; i++) {
-      caliperHubs[i].rotation.y = wheels[i].rotation.y;
-    }
-    origUpdateMatrixWorld(force);
-  };
 
   // Tighter, richer dark underbody ambient-occlusion contact shadow at y = 0.014 on body
   const contact = attach(body, aspectBadge, shadowMat, 0, .014, -.02, 2.38, 5.18, 1);
   contact.rotation.x = -Math.PI / 2;
   contact.renderOrder = 1;
 
-  // Upgraded realistic GT-R R35 Cockpit / Interior (CAM 02)
+  // Complete, Cohesive, Sculpted GT-R R35 Cockpit / Interior (CAM 02)
   const cockpit = new THREE.Group();
   cockpit.visible = false;
   chassis.add(cockpit);
 
-  // Visible front hood contours, NACA vents & muscular fender crests seen through windshield (uses bodyPaint!)
-  sculptedPatch(cockpit, bodyPaint, 16, 10, (u, v) => {
-    const x = (2 * u - 1) * mix(.84, .74, v);
-    const z = mix(1.06, 2.24, v);
-    const fenderPeak = .042 * Math.exp(-(((Math.abs(x) - .62) / .18) ** 2)) * (1 - .35 * v);
-    const centerValley = -.014 * Math.exp(-((x / .24) ** 2));
-    const y = mix(.922, .725, v ** 1.18) + fenderPeak + centerValley;
+  function setCockpitMode(interior) {
+    const inside = Boolean(interior);
+    cockpit.visible = inside;
+    exterior.visible = !inside;
+    cabin.visible = !inside;
+  }
+
+  // Keep brake calipers steered with front wheels & auto-sync exterior visibility if cockpit.visible is toggled directly
+  const origUpdateMatrixWorld = body.updateMatrixWorld.bind(body);
+  body.updateMatrixWorld = function (force) {
+    for (let i = 0; i < wheels.length; i++) {
+      caliperHubs[i].rotation.y = wheels[i].rotation.y;
+    }
+    exterior.visible = !cockpit.visible;
+    origUpdateMatrixWorld(force);
+  };
+
+  // 1. Visible Sculpted Front Hood, Fender Crests, NACA Vents & Wipers beyond the windshield (uses bodyPaint!)
+  sculptedPatch(cockpit, bodyPaint, 20, 12, (u, v) => {
+    const x = (2 * u - 1) * mix(.85, .74, v);
+    const z = mix(1.04, 2.28, v);
+    const fenderPeak = .046 * Math.exp(-(((Math.abs(x) - .63) / .17) ** 2)) * (1 - .32 * v);
+    const powerBulge = .012 * Math.exp(-(((Math.abs(x) - .24) / .14) ** 2)) * (1 - .4 * v);
+    const centerValley = -.012 * Math.exp(-((x / .18) ** 2));
+    const y = mix(.926, .718, v ** 1.2) + fenderPeak + powerBulge + centerValley;
     return [x, y, z];
   });
   for (const side of [-1, 1]) {
-    lineTrim(cockpit, bodyPaint, [[side * .64, .936, 1.08], [side * .61, .894, 1.54], [side * .54, .812, 2.04]], .018);
-    lineTrim(cockpit, bodyPaint, [[side * .34, .922, 1.12], [side * .31, .882, 1.56], [side * .26, .806, 2.02]], .010);
-    // Windshield wiper blades visible at base of windshield
-    lineTrim(cockpit, seal, [[side * .05, .932, 1.03], [side * .42, .944, 1.05], [side * .68, .928, 1.01]], .008);
-  }
-  box(cockpit, seal, 0, .922, 1.02, 1.66, .034, .14);
-
-  // Sculpted dark Alcantara/leather dashboard, stitched upper brow & curved instrument binnacle
-  box(cockpit, alcantara, 0, .886, .75, 1.62, .15, .54);
-  box(cockpit, dashboard, 0, .942, .68, 1.58, .055, .36);
-  // Dark interior floor / lower knee bolster cover sitting above heroShell deck so exterior paint never bleeds inside
-  box(cockpit, black, 0, .916, .16, 1.68, .042, 1.18);
-  box(cockpit, alcantara, -.425, .892, .49, .54, .16, .12);
-  // Stitched curved instrument binnacle hood over the driver's 3D cluster (x = -0.425)
-  sculptedPatch(cockpit, alcantara, 16, 6, (u, v) => {
-    const angle = mix(Math.PI * .12, Math.PI * .88, u);
-    const x = -.425 - Math.cos(angle) * .25;
-    const y = 1.008 + Math.sin(angle) * .118 - v * .012;
-    const z = mix(.482, .665, v);
-    return [x, y, z];
-  });
-  lineTrim(cockpit, stitchRed, [
-    [-.67, 1.015, .488], [-.588, 1.098, .486], [-.425, 1.126, .484], [-.262, 1.098, .486], [-.18, 1.015, .488]
-  ], .0035);
-  lineTrim(cockpit, stitchRed, [
-    [-.76, .962, .58], [-.16, .966, .57], [.18, .972, .585], [.74, .956, .61]
-  ], .003);
-  // Dark cluster backing recess
-  box(cockpit, intake, -.425, 1.032, .568, .46, .155, .04);
-
-  // Carbon-fiber center console stack, climate controls, dual-clutch shift gate & red start button
-  box(cockpit, carbonMat, .06, .945, .635, .40, .20, .06);
-  box(cockpit, graphite, .06, .845, .575, .42, .08, .12);
-  box(cockpit, alcantara, .04, .745, .26, .26, .24, .78);
-  box(cockpit, carbonMat, .04, .938, .22, .22, .022, .56);
-  // Dual-clutch gear selector & red Engine Start/Stop button
-  attach(cockpit, cylinder, silver, -.02, .965, .34, .014, .055, .014);
-  box(cockpit, alcantara, -.02, .995, .34, .042, .026, .052);
-  attach(cockpit, cylinder, stitchRed, -.035, .952, .42, .015, .01, .015);
-  // Dashboard turbine air vents
-  for (const vx of [-.71, -.14, .28, .68]) {
-    attach(cockpit, lampRim, silver, vx, .932, .592, .026, .026, .02).rotation.y = Math.PI;
-    attach(cockpit, lampDisc, intake, vx, .932, .593, .023, .023, 1).rotation.y = Math.PI;
-  }
-
-  // Windshield frame, roof header, sun visors, dark A-pillars & sleek top rearview mirror
-  box(cockpit, alcantara, 0, 1.53, -.12, 1.44, .055, .99);
-  box(cockpit, pillarBlack, 0, 1.505, .398, 1.44, .068, .14);
-  // Sun visors
-  for (const vx of [-.38, .38]) {
-    box(cockpit, alcantara, vx, 1.468, .365, .34, .018, .11);
-  }
-  // Sleek top rearview mirror tucked neatly near header with sunset reflection gradient
-  box(cockpit, pillarBlack, -.02, 1.438, .53, .018, .072, .028);
-  box(cockpit, pillarBlack, -.02, 1.384, .512, .236, .062, .024);
-  attach(cockpit, aspectBadge, mirrorGlassMat, -.02, 1.384, .498, .222, .050, 1).rotation.y = Math.PI;
-
-  // Dark A-pillars, side door tops, interior door pulls & painted exterior side mirror housings
-  for (const side of [-1, 1]) {
-    box(cockpit, alcantara, .855 * side, .855, -.13, .092, .18, 1.06);
-    lineTrim(cockpit, stitchRed, [[.812 * side, .938, -.52], [.812 * side, .938, .38]], .0028);
-    box(cockpit, silver, .808 * side, .875, .14, .018, .022, .16);
-    const base = vector(.822 * side, .895, 1.05);
-    const top = vector(.688 * side, 1.515, .365);
-    const midpoint = base.clone().lerp(top, .5);
-    const pillar = box(cockpit, pillarBlack, midpoint.x, midpoint.y, midpoint.z, .064, .082, base.distanceTo(top));
-    pillar.quaternion.setFromUnitVectors(vector(0, 0, 1), top.clone().sub(base).normalize());
-    // Visible painted exterior side mirror housing + mirror glass outside left/right windows
+    // Raised fender ridge creases & inner hood character lines
+    lineTrim(cockpit, bodyPaint, [[side * .64, .942, 1.06], [side * .61, .898, 1.54], [side * .54, .814, 2.06]], .016);
+    lineTrim(cockpit, bodyPaint, [[side * .33, .926, 1.10], [side * .30, .886, 1.56], [side * .25, .808, 2.04]], .009);
+    // Recessed dark NACA hood intake ducts visible on the hood
+    const naca = [
+      [side * .345, .921, 1.14], [side * .485, .914, 1.18],
+      [side * .465, .884, 1.48], [side * .328, .892, 1.44]
+    ];
+    panel(cockpit, side === 1 ? naca.slice().reverse() : naca, intake);
+    lineTrim(cockpit, carbonMat, [[side * .336, .895, 1.43], [side * .408, .902, 1.32], [side * .476, .916, 1.18]], .008);
+    // Sleek painted exterior side mirror housing + mirror glass visible outside left/right windows
+    lineTrim(cockpit, seal, [[side * .835, .895, .62], [side * .945, .94, .58], [side * 1.028, .962, .58]], .028);
     const extMirror = attach(cockpit, mirrorHousing, bodyPaint, side * 1.032, .982, .57, .152, .060, .112);
     extMirror.rotation.y = -side * .18;
     attach(cockpit, mirrorHousing, seal, side * 1.033, .978, .524, .134, .052, .078).rotation.y = -side * .17;
     attach(cockpit, mirrorHousing, mirrorGlassMat, side * 1.034, .979, .462, .104, .038, .024).rotation.y = -side * .17;
   }
+  // Windshield base cowl & twin low-profile aerodynamic wipers
+  box(cockpit, seal, 0, .924, 1.02, 1.68, .032, .12);
+  lineTrim(cockpit, seal, [[-.56, .936, 1.01], [-.12, .948, 1.045], [.18, .936, 1.03]], .0065);
+  lineTrim(cockpit, seal, [[-.08, .934, 1.025], [.36, .946, 1.04], [.68, .930, 1.00]], .0065);
 
-  // Detailed flat-bottom GT-R sport steering wheel (rotates smoothly with steering.rotation.z)
+  // 2. True Deep Interior Cabin Floor (y = 0.35), Angled Footwells, Drilled Aluminum Pedals & Seat Bolsters
+  box(cockpit, black, 0, .35, .14, 1.66, .036, 1.42);
+  // Angled forward footwell firewall kick-panel (sloping from y = 0.35 at z = 0.56 up to y = 0.76 at z = 0.92)
+  sculptedPatch(cockpit, black, 8, 4, (u, v) => [
+    mix(-.82, .82, u),
+    mix(.35, .76, v),
+    mix(.56, .92, v)
+  ]);
+  // Driver & passenger dark Alcantara floor mats with red border stitch
+  for (const side of [-1, 1]) {
+    box(cockpit, alcantara, side * .425, .372, .22, .52, .012, .62);
+    // Sport bucket seat lower thigh cushion & side bolsters (below camera at z = -0.20)
+    box(cockpit, alcantara, side * .425, .49, -.08, .48, .11, .52);
+    box(cockpit, alcantara, side * .425 - .22, .54, -.08, .08, .14, .50);
+    box(cockpit, alcantara, side * .425 + .22, .54, -.08, .08, .14, .50);
+  }
+  // GT-R drilled aluminum foot pedals in driver footwell (x = -0.425)
+  for (const [px, py, pz, pw, ph] of [
+    [-.335, .48, .72, .042, .115], // Accelerator pedal
+    [-.435, .50, .70, .068, .058], // Brake pedal
+    [-.565, .46, .73, .058, .135]  // Left dead-pedal footrest
+  ]) {
+    const pedalPlate = box(cockpit, silver, px, py, pz, pw, ph, .012);
+    pedalPlate.rotation.x = .48;
+  }
+
+  // 3. Sculpted, Seamless Curved GT-R Twin-Brow Dashboard, Instrument Binnacle Hood & Knee Bolsters
+  // In the real R35 GT-R, the upper Alcantara/leather dashboard pad forms a single continuous
+  // "gliding-wing" double-brow that arches OVER the driver's 3-dial gauge cluster (x = -0.425, y = 1.128)
+  // and OVER the center NISMO MFD screen (x = +0.06, y = 1.056), while the lower shelf sits cleanly
+  // BELOW the gauges (y = 0.922) and MFD (y = 0.892) so nothing ever cuts across or pokes out!
+  const dashFrontZ = x => .514
+    - .034 * Math.exp(-(((x + .425) / .24) ** 2))
+    + .014 * Math.exp(-(((x - .06) / .22) ** 2));
+
+  const dashUpperY = (x, v) => {
+    const base = mix(.944, .928, v) + .016 * Math.sin(v * Math.PI) - .014 * (x * x);
+    // Smooth arched instrument binnacle hood over x = -0.425
+    const binU = clamp((x + .425) / .245, -1, 1);
+    const binArch = Math.pow(Math.max(0, 1 - binU * binU), .76);
+    const binLift = .186 * binArch * Math.pow(1 - v, 1.35);
+    // Integrated center stack MFD hood over x = +0.06
+    const mfdU = clamp((x - .06) / .235, -1, 1);
+    const mfdArch = Math.pow(Math.max(0, 1 - mfdU * mfdU), .84);
+    const mfdLift = .112 * mfdArch * Math.pow(1 - v, 1.25);
+    // Sculpted connecting bridge between binnacle & MFD brow around x = -0.18
+    const bridgeLift = .062 * Math.exp(-(((x + .18) / .115) ** 2)) * Math.pow(1 - v, 1.3);
+    return base + binLift + mfdLift + bridgeLift;
+  };
+
+  const upperDashPoint = (u, v) => {
+    const x = mix(-.84, .84, u);
+    const z = mix(dashFrontZ(x), 1.03, v);
+    const y = dashUpperY(x, v);
+    return [x, y, z];
+  };
+
+  // Continuous upper leather/Alcantara dashboard pad (includes binnacle hood & center MFD hood seamlessly!)
+  sculptedPatch(cockpit, alcantara, 48, 12, upperDashPoint);
+
+  // Dark inner hood ceiling liner under the binnacle & MFD brow (gives solid 14mm padded hood thickness)
+  const innerDashPoint = (u, v) => {
+    const x = mix(-.84, .84, u);
+    const z = mix(dashFrontZ(x), .63, v);
+    const y = dashUpperY(x, v * .22) - .014;
+    return [x, y, z];
+  };
+  sculptedPatch(cockpit, intake, 48, 5, innerDashPoint);
+
+  // Padded front lip bevel seamlessly joining outer upper dash & inner hood liner along v = 0
+  sculptedPatch(cockpit, dashboard, 48, 3, (u, v) => {
+    const out = upperDashPoint(u, 0);
+    const inn = innerDashPoint(u, 0);
+    return [
+      mix(inn[0], out[0], v),
+      mix(inn[1], out[1], v),
+      mix(inn[2], out[2], v) - .005 * Math.sin(v * Math.PI)
+    ];
+  });
+
+  // Flush red contrast stitching evaluated directly on the sculpted binnacle & dashboard front lip (zero floating!)
+  lineTrim(cockpit, stitchRed, Array.from({ length: 41 }, (_, i) => {
+    const p = upperDashPoint(.02 + (i / 40) * .96, .016);
+    return [p[0], p[1] + .0012, p[2] - .001];
+  }), .0024);
+
+  // Curved dark recessed back wall at z = 0.585 strictly below dashUpperY (zero rectangular corners poking out!)
+  sculptedPatch(cockpit, intake, 44, 6, (u, v) => {
+    const x = mix(-.82, .82, u);
+    const topY = dashUpperY(x, .14) - .012;
+    const botY = .885;
+    return [x, mix(botY, topY, v), .585];
+  });
+
+  // Lower dashboard shelf & front fascia (dips cleanly under the gauge cluster & MFD cavity, rises on passenger side)
+  const lowerShelfTopY = x => {
+    const base = .932 - .012 * (x * x);
+    // Dip down to 0.916 under gauge cluster (x = -0.425) and 0.892 under MFD (x = +0.06)
+    const clusterPocket = -.016 * Math.exp(-(((x + .425) / .21) ** 2));
+    const mfdPocket = -.042 * Math.exp(-(((x - .06) / .20) ** 2));
+    return base + clusterPocket + mfdPocket;
+  };
+  // Horizontal recess floor shelf extending from front fascia (z = 0.495) back to cavity wall (z = 0.588)
+  sculptedPatch(cockpit, intake, 40, 4, (u, v) => {
+    const x = mix(-.82, .82, u);
+    return [x, lowerShelfTopY(x), mix(.492, .588, v)];
+  });
+  // Sculpted front lower dashboard fascia & padded knee bolsters (y = 0.80..lowerShelfTopY)
+  sculptedPatch(cockpit, dashboard, 40, 6, (u, v) => {
+    const x = mix(-.84, .84, u);
+    const topY = lowerShelfTopY(x);
+    const colArch = .052 * Math.exp(-(((x + .425) / .13) ** 2));
+    const botY = .802 + colArch;
+    const y = mix(botY, topY, v);
+    const z = .495 - .012 * Math.sin(v * Math.PI) + (1 - v) * .022;
+    return [x, y, z];
+  });
+  // Deep knee-bolster & glovebox under-panel sloping forward into the footwell (y = 0.66..0.80)
+  sculptedPatch(cockpit, alcantara, 32, 5, (u, v) => {
+    const x = mix(-.82, .82, u);
+    const colArch = .052 * Math.exp(-(((x + .425) / .13) ** 2));
+    const topY = .802 + colArch;
+    return [x, mix(.66, topY, v), mix(.68, .517, v)];
+  });
+
+  // Dashboard circular brushed-silver turbine air vents (driver right, center-right, passenger left)
+  for (const [vx, vy, vz] of [[-.73, .886, .490], [-.18, .894, .492], [.285, .888, .492], [.71, .882, .492]]) {
+    attach(cockpit, lampRim, silver, vx, vy, vz, .026, .026, .020).rotation.y = Math.PI;
+    attach(cockpit, lampDisc, intake, vx, vy, vz + .002, .023, .023, 1).rotation.y = Math.PI;
+    box(cockpit, silver, vx, vy, vz - .001, .036, .004, .006);
+  }
+
+  // 5. Integrated GT-R Waterfall Center Console, Flush NISMO MFD, 3 Climate Dials & R-Mode Toggles (x = +0.06)
+  // Sculpted carbon-fiber center stack housing cheeks inside the dashboard center brow (y = 0.89..1.04)
+  sculptedPatch(cockpit, carbonMat, 16, 6, (u, v) => {
+    const x = mix(-.105, .225, u);
+    const topY = dashUpperY(x, .08) - .013;
+    const y = mix(.892, topY, v);
+    const z = mix(.542, .574, v);
+    return [x, y, z];
+  });
+  // Satin-silver side garnish spears framing the center MFD & waterfall stack
+  for (const sx of [-.108, .228]) {
+    lineTrim(cockpit, silver, [
+      [sx, 1.018, .558], [sx, .895, .536], [sx, .785, .432], [sx * .88 + .006, .765, .18]
+    ], .0065);
+  }
+
+  // Angled carbon-fiber waterfall control stack sloping from below MFD (y = 0.90, z = 0.54) to tunnel (y = 0.78, z = 0.43)
+  const waterfall = new THREE.Group();
+  waterfall.position.set(.06, .842, .488);
+  waterfall.rotation.x = -.62;
+  cockpit.add(waterfall);
+  box(waterfall, carbonMat, 0, 0, 0, .318, .156, .024);
+  box(waterfall, graphite, 0, .052, -.011, .286, .026, .008);
+  // GT-R iconic 3 metallic rotary climate control dials (middle row of waterfall)
+  for (const dx of [-.088, 0, .088]) {
+    attach(waterfall, cylinder, silver, dx, .006, -.016, .022, .014, .022).rotation.x = Math.PI / 2;
+    attach(waterfall, cylinder, intake, dx, .006, -.020, .016, .010, .016).rotation.x = Math.PI / 2;
+    box(waterfall, silver, dx, .006, -.024, .005, .022, .006);
+  }
+  // GT-R signature 3 R-Mode setup toggle switches (TRANS, SUSP, VDC-R) in brushed-silver bezel with glowing LED dots
+  box(waterfall, silver, 0, -.046, -.012, .264, .042, .008);
+  box(waterfall, intake, 0, -.046, -.015, .248, .032, .006);
+  for (const [tx, ledMat] of [[-.076, ledAmber], [0, ledAmber], [.076, startBtnRed]]) {
+    // Tiny illuminated R-Mode status LED above toggle
+    attach(waterfall, lampDisc, ledMat, tx, -.035, -.019, .0042, .0042, 1).rotation.y = Math.PI;
+    // Sculpted metallic toggle switch lever & divider fins
+    box(waterfall, silver, tx, -.050, -.021, .014, .016, .014);
+    box(waterfall, silver, tx - .038, -.046, -.017, .004, .030, .010);
+  }
+  box(waterfall, silver, .114, -.046, -.017, .004, .030, .010);
+
+  // Contoured center tunnel (y = 0.60..0.78, z = -0.28..0.46) with padded leather bolsters & carbon shift deck
+  box(cockpit, alcantara, .055, .64, .08, .28, .26, .76);
+  sculptedPatch(cockpit, carbonMat, 10, 14, (u, v) => {
+    const x = mix(-.068, .178, u);
+    const z = mix(-.22, .445, v);
+    const y = mix(.762, .782, v) + .005 * Math.sin(u * Math.PI);
+    return [x, y, z];
+  });
+  // Padded leather knee bolsters & red stitching along both sides of center tunnel
+  for (const side of [-1, 1]) {
+    const bx = .055 + side * .128;
+    lineTrim(cockpit, alcantara, [[bx, .755, -.24], [bx, .768, .12], [bx, .782, .44]], .018);
+    lineTrim(cockpit, stitchRed, [[bx - side * .008, .774, -.22], [bx - side * .008, .786, .12], [bx - side * .008, .798, .43]], .0024);
+  }
+  // Glowing red ENGINE START/STOP button on driver side of center console deck
+  attach(cockpit, cylinder, silver, -.018, .784, .372, .019, .010, .019);
+  attach(cockpit, cylinder, startBtnRed, -.018, .787, .372, .0145, .012, .0145);
+  // Dual-clutch GT-R gear shifter with silver surround bezel, dark leather boot & sculpted shift knob
+  attach(cockpit, cylinder, silver, .058, .778, .275, .048, .008, .048);
+  attach(cockpit, cylinder, intake, .058, .781, .275, .041, .009, .041);
+  attach(cockpit, new THREE.CylinderGeometry(.016, .038, .048, 18), alcantara, .058, .804, .275);
+  attach(cockpit, cylinder, silver, .058, .836, .275, .010, .042, .010);
+  box(cockpit, alcantara, .058, .862, .278, .038, .028, .050);
+  box(cockpit, silver, .058, .875, .278, .024, .006, .042);
+  lineTrim(cockpit, stitchRed, [[.042, .868, .256], [.042, .868, .298]], .0018);
+  // Rotary NISMO display commander dial & padded center armrest behind shifter
+  attach(cockpit, cylinder, silver, .055, .778, .155, .020, .016, .020);
+  attach(cockpit, cylinder, black, .055, .784, .155, .015, .018, .015);
+  box(cockpit, alcantara, .055, .805, -.07, .21, .055, .24);
+  lineTrim(cockpit, stitchRed, [[-.042, .833, -.18], [-.042, .833, .04]], .0022);
+  lineTrim(cockpit, stitchRed, [[.152, .833, -.18], [.152, .833, .04]], .0022);
+
+  // 6. Contoured Door Cards, Dark A-Pillars, Headliner & Sleek Frameless Rearview Mirror
+  box(cockpit, alcantara, 0, 1.525, -.12, 1.42, .048, .96);
+  box(cockpit, pillarBlack, 0, 1.495, .385, 1.40, .056, .12);
+  // Sun visors with subtle vanity seam
+  for (const vx of [-.37, .37]) {
+    box(cockpit, alcantara, vx, 1.462, .355, .33, .016, .10);
+  }
+  // Sleek, compact, frameless-style rearview mirror tucked high near header (y = 1.39, width 0.21, height 0.052)
+  box(cockpit, pillarBlack, 0, 1.442, .505, .016, .068, .024);
+  box(cockpit, pillarBlack, 0, 1.390, .490, .214, .054, .018);
+  attach(cockpit, aspectBadge, mirrorGlassMat, 0, 1.390, .480, .206, .048, 1).rotation.y = Math.PI;
+
+  for (const side of [-1, 1]) {
+    // Full-depth contoured interior door panel from floor (y = 0.38) up to window beltline (y = 0.93)
+    box(cockpit, dashboard, .845 * side, .64, .04, .075, .52, 1.24);
+    // Padded Alcantara upper door shoulder sill & red contrast stitch line
+    box(cockpit, alcantara, .835 * side, .905, .04, .088, .065, 1.22);
+    lineTrim(cockpit, stitchRed, [[.792 * side, .922, -.48], [.792 * side, .926, .05], [.796 * side, .932, .52]], .0025);
+    // Sculpted door armrest, brushed-silver interior pull handle & circular Bose speaker grille
+    box(cockpit, alcantara, .795 * side, .755, -.02, .055, .042, .48);
+    lineTrim(cockpit, silver, [[.785 * side, .835, .10], [.775 * side, .835, .22], [.792 * side, .835, .28]], .007);
+    attach(cockpit, cylinder, graphite, .805 * side, .56, .34, .072, .012, .072).rotation.z = Math.PI / 2;
+    attach(cockpit, fineRing, silver, .800 * side, .56, .34, .070, .070, .35).rotation.y = Math.PI / 2;
+    // Sleek dark A-pillar seamlessly connecting dashboard corner to curved windshield header
+    const base = vector(.815 * side, .925, 1.01);
+    const top = vector(.675 * side, 1.495, .365);
+    const midpoint = base.clone().lerp(top, .5);
+    const pillar = box(cockpit, pillarBlack, midpoint.x, midpoint.y, midpoint.z, .058, .072, base.distanceTo(top));
+    pillar.quaternion.setFromUnitVectors(vector(0, 0, 1), top.clone().sub(base).normalize());
+  }
+
+  // 7. Full, Unobstructed GT-R Sport Steering Wheel (x = -0.425, y = 0.945, z = 0.39, rotation.x = -0.24)
+  // Stationary steering column shroud & control stalks behind the wheel connecting cleanly into dashboard
+  const colShroud = attach(cockpit, new THREE.CylinderGeometry(.052, .064, .17, 20), dashboard, -.425, .925, .465);
+  colShroud.rotation.x = Math.PI / 2 - .24;
+  // Turn signal & wiper control stalks on column shroud
+  for (const side of [-1, 1]) {
+    const stalk = attach(cockpit, cylinder, black, -.425 + side * .068, .938, .432, .0075, .062, .0075);
+    stalk.rotation.z = Math.PI / 2 - side * .22;
+  }
+
   const steering = new THREE.Group();
-  steering.position.set(-.425, .922, .386);
-  steering.rotation.x = -.19;
+  steering.position.set(-.425, .945, .39);
+  steering.rotation.x = -.24;
   cockpit.add(steering);
-  // Sculpted D-shaped flat-bottom rim using closed Catmull-Rom tube
-  const rimPts = Array.from({ length: 28 }, (_, i) => {
-    const a = (i / 28) * Math.PI * 2;
-    const rx = Math.cos(a) * .194;
-    let ry = Math.sin(a) * .194;
-    if (ry < -.138) ry = mix(ry, -.138, .78); // Flat bottom section
-    return vector(rx, ry, 0);
+  // Sculpted D-shaped flat-bottom leather rim using closed Catmull-Rom tube (wide open upper arch for gauges!)
+  const rimPts = Array.from({ length: 36 }, (_, i) => {
+    const a = (i / 36) * Math.PI * 2;
+    const rx = Math.cos(a) * .196;
+    let ry = Math.sin(a) * .196;
+    if (ry < -.138) ry = mix(ry, -.138, .82); // Crisp D-shaped flat bottom section
+    // Subtle ergonomic thumb-rest swell at 10 & 2 o'clock
+    const thumbSwell = 1 + .028 * Math.exp(-(((Math.abs(a - Math.PI * .5) - Math.PI * .32) / .14) ** 2));
+    return vector(rx * thumbSwell, ry, 0);
   });
   const rimCurve = new THREE.CatmullRomCurve3(rimPts, true);
-  attach(steering, new THREE.TubeGeometry(rimCurve, 56, .024, 12, true), alcantara, 0, 0, 0);
-  // Red 12 o'clock centering stripe at top of rim
-  attach(steering, cylinder, stitchRed, 0, .194, 0, .0255, .022, .0255).rotation.z = Math.PI / 2;
-  // Contoured silver 3-spoke core + dark thumb switch pods
-  box(steering, silver, 0, -.006, -.004, .326, .042, .026);
-  box(steering, black, -.112, .002, -.012, .058, .036, .022);
-  box(steering, black, .112, .002, -.012, .058, .036, .022);
-  box(steering, silver, 0, -.078, -.004, .056, .128, .026);
-  box(steering, intake, 0, -.084, -.012, .018, .078, .018);
-  // Aluminum paddle shifters behind the rim (left - downshift, right + upshift)
-  for (const side of [-1, 1]) {
-    const paddle = box(steering, silver, side * .128, .036, .028, .036, .115, .008);
-    paddle.rotation.z = -side * .14;
-  }
-  // Sculpted dark airbag hub & GT-R emblem facing driver
-  attach(steering, cylinder, graphite, 0, -.004, -.016, .064, .032, .064).rotation.x = Math.PI / 2;
-  attach(steering, fineRing, silver, 0, -.004, -.033, .056, .056, .35);
-  attach(steering, aspectBadge, badge, 0, -.004, -.036, .058, .031, 1).rotation.y = Math.PI;
+  attach(steering, new THREE.TubeGeometry(rimCurve, 64, .0225, 14, true), alcantara, 0, 0, 0);
+  // Flush red 12 o'clock centering band curved smoothly along the top arc of the rim
+  const stripeCurve = new THREE.CatmullRomCurve3([
+    vector(-.016, .1953, 0), vector(0, .196, 0), vector(.016, .1953, 0)
+  ]);
+  attach(steering, new THREE.TubeGeometry(stripeCurve, 8, .0234, 12, false), stitchRed, 0, 0, 0);
 
-  // Live animated 3D Instrument Cluster (512x160 canvas texture)
+  // 3 Brushed-silver sculpted spokes (angled slightly below center so the upper half is 100% unobstructed)
+  for (const side of [-1, 1]) {
+    const spoke = box(steering, silver, side * .108, -.016, -.004, .135, .036, .022);
+    spoke.rotation.z = -side * .08;
+    // Dark multifunction thumb switch pod with metallic rocker controls
+    const pod = box(steering, black, side * .112, -.012, -.012, .058, .038, .020);
+    pod.rotation.z = -side * .08;
+    box(steering, silver, side * .112, -.005, -.023, .036, .005, .004);
+    box(steering, silver, side * .112, -.019, -.023, .036, .005, .004);
+    box(steering, stitchRed, side * .094, -.012, -.023, .007, .012, .004);
+    // Crisp brushed-aluminum paddle shifters (- left downshift, + right upshift) behind the rim
+    const paddle = box(steering, silver, side * .132, .032, .026, .034, .118, .007);
+    paddle.rotation.z = -side * .12;
+    box(steering, stitchRed, side * .134, .038, .021, .012, .0035, .003);
+    if (side === 1) box(steering, stitchRed, side * .134, .038, .021, .0035, .012, .003);
+  }
+  // Twin-slotted GT-R brushed-silver vertical bottom spoke
+  for (const side of [-1, 1]) {
+    const lowSpoke = box(steering, silver, side * .018, -.088, -.004, .018, .118, .022);
+    lowSpoke.rotation.z = side * .05;
+  }
+  box(steering, intake, 0, -.092, -.006, .016, .086, .018);
+  box(steering, silver, 0, -.136, -.004, .056, .022, .022);
+
+  // Sculpted center airbag hub, silver bezel ring & GT-R emblem facing driver
+  attach(steering, cylinder, graphite, 0, -.010, .010, .056, .036, .056).rotation.x = Math.PI / 2;
+  attach(steering, cylinder, alcantara, 0, -.010, -.012, .062, .026, .062).rotation.x = Math.PI / 2;
+  attach(steering, fineRing, silver, 0, -.010, -.026, .052, .052, .35);
+  attach(steering, aspectBadge, badge, 0, -.010, -.028, .054, .029, 1).rotation.y = Math.PI;
+
+  // 8. Live 3D Instrument Cluster (512x160 canvas texture, contoured 3-pod shape recessed at y = 1.012, z = 0.548)
   const clusterCanvas = document.createElement('canvas');
   clusterCanvas.width = 512;
   clusterCanvas.height = 160;
   const clusterCtx = clusterCanvas.getContext('2d');
   const clusterTex = new THREE.CanvasTexture(clusterCanvas);
   clusterTex.colorSpace = THREE.SRGBColorSpace;
-  const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex, toneMapped: false });
-  const clusterMesh = attach(cockpit, aspectBadge, clusterMat, -.425, 1.032, .542, .418, .134, 1);
+  const clusterMat = new THREE.MeshBasicMaterial({ map: clusterTex, transparent: true, toneMapped: false });
+  const clusterMesh = attach(cockpit, aspectBadge, clusterMat, -.425, 1.012, .548, .392, .124, 1);
   clusterMesh.rotation.order = 'YXZ';
   clusterMesh.rotation.y = Math.PI;
-  clusterMesh.rotation.x = -.11;
+  clusterMesh.rotation.x = -.15;
 
-  // Authentic GT-R center Multi-Function Display (MFD) screen (cleanly in front of center stack, zero clipping)
+  // 9. Recessed Flush NISMO MFD Telemetry Screen (320x180 canvas texture, unified group angled toward driver)
   const mfdCanvas = document.createElement('canvas');
   mfdCanvas.width = 320;
   mfdCanvas.height = 180;
@@ -945,14 +1181,17 @@ function makeR35() {
   const mfdTex = new THREE.CanvasTexture(mfdCanvas);
   mfdTex.colorSpace = THREE.SRGBColorSpace;
   const mfdMat = new THREE.MeshBasicMaterial({ map: mfdTex, toneMapped: false });
-  const mfdFrame = box(cockpit, pillarBlack, .06, 1.015, .585, .312, .168, .016);
-  mfdFrame.rotation.order = 'YXZ';
-  mfdFrame.rotation.y = -.08;
-  mfdFrame.rotation.x = -.08;
-  const mfdMesh = attach(cockpit, aspectBadge, mfdMat, .058, 1.015, .572, .295, .152, 1);
-  mfdMesh.rotation.order = 'YXZ';
-  mfdMesh.rotation.y = Math.PI - .08;
-  mfdMesh.rotation.x = -.08;
+  const mfdGroup = new THREE.Group();
+  mfdGroup.position.set(.06, .964, .556);
+  mfdGroup.rotation.order = 'YXZ';
+  mfdGroup.rotation.y = .10;
+  mfdGroup.rotation.x = .13;
+  cockpit.add(mfdGroup);
+  // Sleek beveled satin-silver & dark carbon MFD frame recessed inside the center stack hood
+  box(mfdGroup, silver, 0, 0, .005, .284, .154, .016);
+  box(mfdGroup, pillarBlack, 0, 0, .002, .272, .144, .016);
+  const mfdMesh = attach(mfdGroup, aspectBadge, mfdMat, 0, 0, -.007, .258, .134, 1);
+  mfdMesh.rotation.y = Math.PI;
 
   let lastClusterDraw = -Infinity;
   let lastSpeed = -1;
@@ -963,31 +1202,32 @@ function makeR35() {
   function drawClusterAndMfd(speedKmh, revs, gearLabel, steerNorm) {
     const ctx = clusterCtx;
     const w = 512, h = 160;
-    ctx.fillStyle = '#0a0d14';
-    ctx.fillRect(0, 0, w, h);
+    ctx.clearRect(0, 0, w, h);
 
-    // Subtle carbon instrument backing grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += 16) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
+    // Contoured 3-pod instrument cluster housing silhouette (zero rectangular corners!)
+    const sx = 112, sy = 88, sr = 54;
+    const tx = 256, ty = 82, tr = 66;
+    const rx = 400, ry = 88, rr = 54;
+
+    ctx.fillStyle = '#090c13';
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr + 8, 0, Math.PI * 2);
+    ctx.arc(tx, ty, tr + 9, 0, Math.PI * 2);
+    ctx.arc(rx, ry, rr + 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(sx, 42, rx - sx, 98);
 
     const startAng = Math.PI * .75;
     const endAng = Math.PI * 2.25;
     const sweep = endAng - startAng;
 
-    // 1. LEFT DIAL: Speedometer (0 - 320 km/h)
-    const sx = 108, sy = 88, sr = 54;
+    // 1. LEFT DIAL: Speedometer (0 - 320 km/h) with metallic bezel ring
     ctx.beginPath();
-    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.arc(sx, sy, sr + 4, 0, Math.PI * 2);
     ctx.fillStyle = '#101521';
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#29354d';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#60708a';
     ctx.stroke();
 
     const speedFrac = clamp(speedKmh / 320, 0, 1);
@@ -1009,7 +1249,7 @@ function makeR35() {
       ctx.strokeStyle = '#c8d6eb';
       ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.fillStyle = '#9fb2cc';
+      ctx.fillStyle = '#a9bdd8';
       ctx.fillText(String(s), sx + c * (sr - 19), sy + sn * (sr - 19));
     }
     // Live speedometer needle
@@ -1022,20 +1262,19 @@ function makeR35() {
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#2a3346';
+    ctx.fillStyle = '#333e54';
     ctx.fill();
-    ctx.fillStyle = '#7b93b3';
+    ctx.fillStyle = '#8aa2c4';
     ctx.font = 'bold 9px sans-serif';
     ctx.fillText('KM/H', sx, sy + 28);
 
     // 2. CENTER DIAL: Iconic GT-R Tachometer (0 - 9000 RPM, redline at 7000)
-    const tx = 256, ty = 84, tr = 66;
     ctx.beginPath();
-    ctx.arc(tx, ty, tr, 0, Math.PI * 2);
+    ctx.arc(tx, ty, tr + 4, 0, Math.PI * 2);
     ctx.fillStyle = '#131926';
     ctx.fill();
-    ctx.lineWidth = 3.5;
-    ctx.strokeStyle = '#3b4a68';
+    ctx.lineWidth = 4.5;
+    ctx.strokeStyle = '#7e90ad';
     ctx.stroke();
 
     // Redline arc (7000 - 9000 RPM)
@@ -1069,12 +1308,12 @@ function makeR35() {
     }
 
     // Center GT-R branding & digital Gear indicator window inside tach
-    ctx.fillStyle = '#8fa4c4';
+    ctx.fillStyle = '#9db2d1';
     ctx.font = 'bold 8px sans-serif';
     ctx.fillText('x1000 r/min', tx, ty - 22);
     ctx.fillStyle = revs >= 6900 ? '#ff2e43' : '#1b2233';
     ctx.fillRect(tx - 17, ty + 14, 34, 28);
-    ctx.strokeStyle = '#52688f';
+    ctx.strokeStyle = '#5e76a1';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(tx - 17, ty + 14, 34, 28);
     ctx.fillStyle = '#ffffff';
@@ -1095,22 +1334,21 @@ function makeR35() {
     ctx.restore();
     ctx.beginPath();
     ctx.arc(tx, ty, 7.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#2d374b';
+    ctx.fillStyle = '#38445c';
     ctx.fill();
 
-    // 3. RIGHT PANEL: Digital Speed + Boost + Gear Display
-    const rx = 406, ry = 88, rr = 54;
+    // 3. RIGHT PANEL: Digital Speed + Boost + Gear Display with metallic bezel ring
     ctx.beginPath();
-    ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+    ctx.arc(rx, ry, rr + 4, 0, Math.PI * 2);
     ctx.fillStyle = '#101521';
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#29354d';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#60708a';
     ctx.stroke();
 
     // Digital speed readout
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px monospace';
+    ctx.font = 'bold 25px monospace';
     ctx.fillText(String(Math.round(speedKmh)).padStart(3, '0'), rx, ry - 10);
     ctx.fillStyle = '#5ec2ff';
     ctx.font = 'bold 9px sans-serif';
@@ -1122,7 +1360,7 @@ function makeR35() {
     ctx.fillRect(rx - 32, ry + 18, 64, 8);
     ctx.fillStyle = boost > .8 ? '#ff4f3b' : '#f79b3e';
     ctx.fillRect(rx - 32, ry + 18, 64 * boost, 8);
-    ctx.fillStyle = '#95a9c6';
+    ctx.fillStyle = '#a3b8d6';
     ctx.font = 'bold 8px sans-serif';
     ctx.fillText(`BOOST ${(boost * 1.4).toFixed(1)} BAR`, rx, ry + 35);
 
@@ -1206,14 +1444,14 @@ function makeR35() {
   // Initial draw so the gauges are crisp immediately upon entering cockpit view
   updateInterior(0, 900, 'N', 0);
 
-  for (const group of [...wheels, ...caliperHubs, cabin, steering, cockpit, chassis, body]) batchPanels(group);
-  for (const group of [body, chassis, cabin, ...wheels, ...caliperHubs]) for (const part of group.children) {
+  for (const group of [...wheels, ...caliperHubs, cabin, steering, waterfall, mfdGroup, cockpit, exterior, chassis, body]) batchPanels(group);
+  for (const group of [body, chassis, exterior, cabin, ...wheels, ...caliperHubs]) for (const part of group.children) {
     if (!part.isMesh || part.material.isMeshBasicMaterial || part.material.emissive?.getHex()) continue;
     part.castShadow = true;
     part.receiveShadow = true;
   }
   scene.add(root);
-  return { root, body, chassis, wheels, cockpit, cabin, steering, brakeLight, setPaint, updateInterior };
+  return { root, body, chassis, wheels, cockpit, cabin, steering, brakeLight, setPaint, updateInterior, setCockpitMode };
 }
 
 const trafficColors = [0xaaaeb3, 0x433c47, 0x344e53, 0x905044, 0xb4a397, 0x4c5980];
