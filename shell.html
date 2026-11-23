@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310151e'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-style='italic' font-weight='900' font-size='26' fill='%23ffac72'%3ER35%3C/text%3E%3C/svg%3E">
+<title>Afterglow · R35</title>
+<style>
+:root{color-scheme:dark;--ink:#f5f7fb;--muted:#c7cdd6;--accent:#ffac72;--panel:#10151ee8;--line:#ffffff33;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box}body{margin:0;background:#141921;color:var(--ink);font-family:system-ui,"Leelawadee UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible{outline:3px solid #ffbc93;outline-offset:4px}[hidden]{display:none!important}
+#stage,#stage canvas{position:fixed;inset:0;width:100%;height:100%;display:block}#stage canvas{touch-action:none;cursor:grab}#stage canvas:active{cursor:grabbing}.vignette{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#080e1b63,transparent 26%,transparent 71%,#080e1ba6),radial-gradient(ellipse at center,transparent 48%,#0d0d1e50)}
+header{position:fixed;top:clamp(15px,3.3vw,46px);left:clamp(15px,3.3vw,46px);right:clamp(15px,3.3vw,46px);display:flex;justify-content:space-between;align-items:start;gap:10px;pointer-events:none}.brand{font-style:italic;font-weight:930;letter-spacing:.09em;font-size:clamp(16px,3vw,28px);line-height:1}.brand b{color:var(--accent);font-weight:950}.road-name{display:block;margin-top:9px;color:var(--ink);font:700 11px var(--mono);letter-spacing:.2em;text-shadow:0 1px 4px #000}.actions{display:flex;gap:7px;pointer-events:auto}.action{min-width:42px;min-height:40px;padding:6px 11px;background:#121821de;border:1px solid var(--line);border-radius:7px;font:700 11px var(--mono);letter-spacing:.06em}.action:hover{background:#3b3435}.action svg{width:16px;height:16px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.6}
+.trip{position:fixed;left:clamp(15px,3.3vw,46px);bottom:clamp(18px,4vw,55px);min-width:160px;border-left:2px solid var(--accent);padding-left:13px;text-shadow:0 2px 6px #000;pointer-events:none}.label{font:700 11px var(--mono);color:var(--muted);letter-spacing:.18em}.distance{font:800 clamp(25px,4vw,46px)/1.15 var(--mono);letter-spacing:-.055em}.unit{color:var(--muted);font:700 11px var(--mono);letter-spacing:.06em}.best{margin-top:4px;font:700 11px var(--mono);color:var(--muted)}
+.hud{position:fixed;right:clamp(15px,3.3vw,46px);bottom:clamp(18px,4vw,55px);width:clamp(155px,21vw,278px);pointer-events:none;filter:drop-shadow(0 6px 13px #070912aa)}.dial{position:relative;aspect-ratio:1.25;isolation:isolate}.dial svg{width:100%;height:100%;display:block}.dial-copy{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;padding-top:15%;text-shadow:0 2px 8px #000}.speed{font:900 clamp(35px,6vw,75px)/.92 var(--mono);letter-spacing:-.095em;padding-right:.095em}.gear{color:var(--accent);font:800 clamp(16px,2.5vw,25px) var(--mono);margin-top:7px}.dial-copy .unit{margin-top:5px}.rpm{width:76%;margin:-3% auto 0;display:flex;flex-direction:column;gap:5px}.rpm-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}.rpm-bars i{height:4px;background:#c4d0e64a;border-radius:2px}.rpm-bars i.on{background:#ffbc93}.rpm-bars i:nth-last-child(-n+2).on{background:#ff6455}.rpm-desc{display:flex;justify-content:space-between;font:700 9px var(--mono);color:var(--muted);letter-spacing:.05em}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;padding:clamp(18px,6vw,90px);background:linear-gradient(90deg,#090e19ee 0,#10101ac6 32%,#10101a24 71%)}.card{max-width:min(480px,100%)}.kicker{color:var(--accent);font:700 12px var(--mono);letter-spacing:.24em;margin:0 0 12px}.card h1,.card h2{margin:0;font-size:clamp(45px,9vw,116px);font-weight:950;font-style:italic;line-height:.84;letter-spacing:-.09em}.card h2{font-size:clamp(35px,7vw,70px);line-height:1}.card h1 b{color:var(--accent)}.card p.desc{font-size:clamp(13px,1.6vw,17px);max-width:355px;margin:22px 0;color:#e2e6ee;line-height:1.6}.drive{border:0;border-radius:7px;color:#1d100c;background:#ffac72;font-weight:900;min-height:48px;min-width:156px;padding:11px 21px}.drive:hover{background:#ffd0af}.secondary{border:1px solid var(--line);background:var(--panel);border-radius:7px;margin-left:7px;min-height:48px;padding:8px 13px}.help{margin-top:17px;font-size:12px;color:#d3dae5;line-height:1.75}.help kbd{font:700 11px var(--mono);color:#fff;background:#303746;border-radius:4px;padding:3px 5px}.toast{position:fixed;top:18%;left:50%;transform:translateX(-50%);background:#10151eeb;border:1px solid #ffac7290;color:#fff;border-radius:6px;padding:9px 14px;text-align:center;min-width:120px;pointer-events:none;font-size:13px}
+.touch{display:none;position:fixed;left:0;right:0;bottom:13px;justify-content:space-between;padding:0 12px;pointer-events:none}.touch div{display:flex;gap:8px}.touch button{pointer-events:auto;touch-action:none;border:1px solid #ffffff70;background:#10151ee0;width:51px;height:47px;border-radius:8px}.touch button:active,.touch button.held{background:#b66544}
+@media(pointer:coarse){.touch{display:flex}.trip,.hud{bottom:75px}.desktop-help{display:none}}@media(max-width:420px){.road-name{letter-spacing:.08em}.action{padding:5px 8px}.extra{display:none}.hud{width:140px}}
+@media(max-height:480px){.overlay{padding-top:61px}.card h1{font-size:55px}.card p.desc{margin:12px 0}.help{margin-top:8px}.hud{width:135px}}
+body:has(#startCard:not([hidden])) header{visibility:hidden}
+#stage canvas:focus{outline:none}
+@media(max-width:630px) and (orientation:portrait){.overlay{align-items:flex-start;padding-top:13vh;background:linear-gradient(180deg,#0b1022bd,transparent 78%)}.card h1{font-size:clamp(47px,13vw,73px)}}
+</style>
+<style>
+.touch{bottom:max(12px,env(safe-area-inset-bottom));padding:0 max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left));user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.touch button{width:clamp(52px,13.5vw,80px);height:clamp(51px,11vh,64px);font-size:15px;font-weight:800}
+.touch [data-key="KeyW"]{background:#ffac72;color:#24130a;border-color:#ffd1b3}
+.touch [data-key="KeyW"].held{background:#ffd0ad}
+@media(any-pointer:coarse){.touch{display:flex}.trip,.hud{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.desktop-help{display:none}}
+@media(any-pointer:coarse) and (orientation:portrait){.hud{width:137px}.trip{min-width:0}}
+@media(any-pointer:coarse) and (orientation:landscape) and (max-height:500px){.hud{width:112px}.hud .dial-copy{padding-top:12%}.hud .speed{font-size:32px}.hud .dial-copy .unit{font-size:9px;margin-top:2px}.hud .gear{font-size:14px;margin-top:2px}.trip{min-width:0}.trip .distance{font-size:25px}}
+</style>
+</head>
+<body>
+<div id="stage"></div><div class="vignette"></div>
+<header><div><div class="brand">AFTER<b>GLOW</b></div><span id="roadName" class="road-name">SUNSET COAST</span></div>
+<div id="actions" class="actions" hidden>
+<button class="action" id="view" title="สลับมุมกล้อง (C)" aria-label="สลับมุมกล้อง">CAM <span id="cam">01</span></button>
+<button class="action" id="sound" title="เปิดหรือปิดเสียง (M)" aria-label="เปิดหรือปิดเสียง" aria-pressed="true">เสียง</button>
+<button class="action" id="pause" title="พักเกม (P)" aria-label="พักเกม"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
+</div></header>
+<section id="trip" class="trip" aria-label="ระยะทาง" hidden><div class="label">DISTANCE</div><span id="distance" class="distance">0.00</span> <span class="unit">KM</span><div class="best">BEST <span id="best">0.00</span> KM</div></section>
+<section id="hud" class="hud" aria-label="มาตรวัดรถ" hidden>
+<div class="dial"><svg viewBox="0 0 240 200" aria-hidden="true"><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#0e111ce0" stroke-width="23"/><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#ffffff64" stroke-width="2"/><path id="speedArc" d="M49 171a95 95 0 1 1 142 0" pathLength="100" fill="none" stroke="#ffaf77" stroke-width="4" stroke-dasharray="0 100"/><g id="ticks"></g></svg>
+<div class="dial-copy"><span id="speed" class="speed">000</span><span class="unit">KM/H</span><span id="gear" class="gear">N</span></div></div>
+<div class="rpm"><div id="rpmBars" class="rpm-bars"></div><div class="rpm-desc"><span>RPM</span><span id="rpm">0.9 × 1000</span></div></div>
+</section>
+<div class="touch" id="touch" hidden aria-label="ปุ่มขับรถ"><div><button data-key="KeyA" aria-label="เลี้ยวซ้าย">◀</button><button data-key="KeyD" aria-label="เลี้ยวขวา">▶</button></div><div><button data-key="KeyS" aria-label="เบรก">เบรก</button><button data-key="KeyW" aria-label="เร่ง">เร่ง</button></div></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<main id="overlay" class="overlay"><div id="startCard" class="card"><p class="kicker">ENDLESS HIGHWAY / R35</p><h1>AFTER<b>GLOW</b></h1><p class="desc">ขับ GT‑R R35 บนทางหลวงยามเย็น แซงรถจราจรแล้วทำสถิติระยะทางของคุณ</p><button class="drive" id="start">เริ่มขับ <span aria-hidden="true">↗</span></button><div class="help desktop-help"><kbd>W</kbd> เร่ง &nbsp; <kbd>S</kbd> เบรก &nbsp; <kbd>A</kbd> <kbd>D</kbd> เลี้ยว<br>ลากเมาส์เพื่อมองรอบรถ &nbsp; <kbd>C</kbd> สลับกล้อง</div></div>
+<div id="pauseCard" class="card" hidden><p class="kicker">AFTERGLOW</p><h2 id="pauseTitle">พักเกม</h2><p class="desc" id="pauseText"></p><button class="drive" id="resume">ขับต่อ</button><button class="secondary" id="restart">เริ่มใหม่</button></div></main>
+<noscript>เปิด JavaScript เพื่อเล่น Afterglow</noscript>
+<!-- INLINE_GAME -->
+</body>
+</html>
