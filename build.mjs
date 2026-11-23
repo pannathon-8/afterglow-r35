@@ -13,7 +13,7 @@ try {
 ${modules.join('\n')}
 } catch (error) {
   console.error(error);
-  document.querySelector('#startCard .desc').textContent = 'เปิดฉาก 3D ไม่สำเร็จ ลองเปิดด้วยเบราว์เซอร์ที่รองรับ WebGL 2 แล้วโหลดหน้าใหม่';
+  document.querySelector('#startCard .desc').textContent = 'Could not start 3D scene. Please use a browser with WebGL 2 enabled and reload.';
   document.querySelector('#start').disabled = true;
 }
 `),

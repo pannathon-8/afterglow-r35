@@ -1,54 +1,321 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310151e'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-style='italic' font-weight='900' font-size='26' fill='%23ffac72'%3ER35%3C/text%3E%3C/svg%3E">
 <title>Afterglow · R35</title>
 <style>
-:root{color-scheme:dark;--ink:#f5f7fb;--muted:#c7cdd6;--accent:#ffac72;--panel:#10151ee8;--line:#ffffff33;--mono:Consolas,"Courier New",monospace}
-*{box-sizing:border-box}body{margin:0;background:#141921;color:var(--ink);font-family:system-ui,"Leelawadee UI",sans-serif}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible{outline:3px solid #ffbc93;outline-offset:4px}[hidden]{display:none!important}
-#stage,#stage canvas{position:fixed;inset:0;width:100%;height:100%;display:block}#stage canvas{touch-action:none;cursor:grab}#stage canvas:active{cursor:grabbing}.vignette{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#080e1b63,transparent 26%,transparent 71%,#080e1ba6),radial-gradient(ellipse at center,transparent 48%,#0d0d1e50)}
-header{position:fixed;top:clamp(15px,3.3vw,46px);left:clamp(15px,3.3vw,46px);right:clamp(15px,3.3vw,46px);display:flex;justify-content:space-between;align-items:start;gap:10px;pointer-events:none}.brand{font-style:italic;font-weight:930;letter-spacing:.09em;font-size:clamp(16px,3vw,28px);line-height:1}.brand b{color:var(--accent);font-weight:950}.road-name{display:block;margin-top:9px;color:var(--ink);font:700 11px var(--mono);letter-spacing:.2em;text-shadow:0 1px 4px #000}.actions{display:flex;gap:7px;pointer-events:auto}.action{min-width:42px;min-height:40px;padding:6px 11px;background:#121821de;border:1px solid var(--line);border-radius:7px;font:700 11px var(--mono);letter-spacing:.06em}.action:hover{background:#3b3435}.action svg{width:16px;height:16px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.6}
-.trip{position:fixed;left:clamp(15px,3.3vw,46px);bottom:clamp(18px,4vw,55px);min-width:160px;border-left:2px solid var(--accent);padding-left:13px;text-shadow:0 2px 6px #000;pointer-events:none}.label{font:700 11px var(--mono);color:var(--muted);letter-spacing:.18em}.distance{font:800 clamp(25px,4vw,46px)/1.15 var(--mono);letter-spacing:-.055em}.unit{color:var(--muted);font:700 11px var(--mono);letter-spacing:.06em}.best{margin-top:4px;font:700 11px var(--mono);color:var(--muted)}
-.hud{position:fixed;right:clamp(15px,3.3vw,46px);bottom:clamp(18px,4vw,55px);width:clamp(155px,21vw,278px);pointer-events:none;filter:drop-shadow(0 6px 13px #070912aa)}.dial{position:relative;aspect-ratio:1.25;isolation:isolate}.dial svg{width:100%;height:100%;display:block}.dial-copy{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;padding-top:15%;text-shadow:0 2px 8px #000}.speed{font:900 clamp(35px,6vw,75px)/.92 var(--mono);letter-spacing:-.095em;padding-right:.095em}.gear{color:var(--accent);font:800 clamp(16px,2.5vw,25px) var(--mono);margin-top:7px}.dial-copy .unit{margin-top:5px}.rpm{width:76%;margin:-3% auto 0;display:flex;flex-direction:column;gap:5px}.rpm-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}.rpm-bars i{height:4px;background:#c4d0e64a;border-radius:2px}.rpm-bars i.on{background:#ffbc93}.rpm-bars i:nth-last-child(-n+2).on{background:#ff6455}.rpm-desc{display:flex;justify-content:space-between;font:700 9px var(--mono);color:var(--muted);letter-spacing:.05em}
-.overlay{position:fixed;inset:0;display:flex;align-items:center;padding:clamp(18px,6vw,90px);background:linear-gradient(90deg,#090e19ee 0,#10101ac6 32%,#10101a24 71%)}.card{max-width:min(480px,100%)}.kicker{color:var(--accent);font:700 12px var(--mono);letter-spacing:.24em;margin:0 0 12px}.card h1,.card h2{margin:0;font-size:clamp(45px,9vw,116px);font-weight:950;font-style:italic;line-height:.84;letter-spacing:-.09em}.card h2{font-size:clamp(35px,7vw,70px);line-height:1}.card h1 b{color:var(--accent)}.card p.desc{font-size:clamp(13px,1.6vw,17px);max-width:355px;margin:22px 0;color:#e2e6ee;line-height:1.6}.drive{border:0;border-radius:7px;color:#1d100c;background:#ffac72;font-weight:900;min-height:48px;min-width:156px;padding:11px 21px}.drive:hover{background:#ffd0af}.secondary{border:1px solid var(--line);background:var(--panel);border-radius:7px;margin-left:7px;min-height:48px;padding:8px 13px}.help{margin-top:17px;font-size:12px;color:#d3dae5;line-height:1.75}.help kbd{font:700 11px var(--mono);color:#fff;background:#303746;border-radius:4px;padding:3px 5px}.toast{position:fixed;top:18%;left:50%;transform:translateX(-50%);background:#10151eeb;border:1px solid #ffac7290;color:#fff;border-radius:6px;padding:9px 14px;text-align:center;min-width:120px;pointer-events:none;font-size:13px}
-.touch{display:none;position:fixed;left:0;right:0;bottom:13px;justify-content:space-between;padding:0 12px;pointer-events:none}.touch div{display:flex;gap:8px}.touch button{pointer-events:auto;touch-action:none;border:1px solid #ffffff70;background:#10151ee0;width:51px;height:47px;border-radius:8px}.touch button:active,.touch button.held{background:#b66544}
-@media(pointer:coarse){.touch{display:flex}.trip,.hud{bottom:75px}.desktop-help{display:none}}@media(max-width:420px){.road-name{letter-spacing:.08em}.action{padding:5px 8px}.extra{display:none}.hud{width:140px}}
-@media(max-height:480px){.overlay{padding-top:61px}.card h1{font-size:55px}.card p.desc{margin:12px 0}.help{margin-top:8px}.hud{width:135px}}
+:root{color-scheme:dark;--ink:#f5f7fb;--muted:#b9c2cf;--accent:#ffac72;--accent-2:#ffd0af;--panel:#10151ee8;--line:#ffffff33;--red:#ff3d57;
+--sans:"Montserrat","Segoe UI Variable Display","Segoe UI",Inter,"Helvetica Neue",Arial,system-ui,sans-serif;
+--mono:"JetBrains Mono","Cascadia Mono","SF Mono",Consolas,"Liberation Mono",monospace;
+--pad:clamp(15px,3.3vw,46px);--safe-b:max(12px,env(safe-area-inset-bottom));--touch-h:0px}
+*{box-sizing:border-box}
+body{margin:0;background:#141921;color:var(--ink);font-family:var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid #ffbc93;outline-offset:3px}
+[hidden]{display:none!important}
+#stage,#stage canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#stage canvas{touch-action:none;cursor:grab}#stage canvas:active{cursor:grabbing}#stage canvas:focus{outline:none}
+.vignette{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,#080e1b63,transparent 26%,transparent 71%,#080e1ba6),radial-gradient(ellipse at center,transparent 48%,#0d0d1e50)}
+.flash{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 52%,#ff1a3a66 100%);box-shadow:inset 0 0 110px 30px #ff1730b8}
+.flash.on{animation:flash .75s ease-out}
+@keyframes flash{0%{opacity:1}100%{opacity:0}}
+
+/* ---------- Header + hearts ---------- */
+header{position:fixed;top:var(--pad);left:var(--pad);right:var(--pad);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none}
+.brand{font-style:italic;font-weight:900;letter-spacing:.09em;font-size:clamp(16px,3vw,28px);line-height:1}
+.brand b{color:var(--accent);font-weight:900}
+.road-name{display:block;margin-top:9px;color:var(--ink);font:700 11px var(--mono);letter-spacing:.2em;text-shadow:0 1px 4px #000}
+.hearts{display:flex;gap:5px;margin-top:9px;filter:drop-shadow(0 2px 5px #000a)}
+.heart{width:22px;height:21px;fill:var(--red);stroke:#fff9;stroke-width:1.2;transition:fill .2s,stroke .2s}
+.heart.lost{fill:#ffffff14;stroke:#ffffff55}
+.heart.pop{animation:pop .6s ease-out}
+@keyframes pop{0%{transform:scale(1.5);fill:#fff}100%{transform:scale(1)}}
+.actions{display:flex;gap:7px;pointer-events:auto}
+.action{min-width:42px;min-height:40px;padding:6px 11px;background:#121821de;border:1px solid var(--line);border-radius:7px;font:700 11px var(--mono);letter-spacing:.06em}
+.action:hover{background:#3b3435}
+.action svg{width:16px;height:16px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.6}
 body:has(#startCard:not([hidden])) header{visibility:hidden}
-#stage canvas:focus{outline:none}
-@media(max-width:630px) and (orientation:portrait){.overlay{align-items:flex-start;padding-top:13vh;background:linear-gradient(180deg,#0b1022bd,transparent 78%)}.card h1{font-size:clamp(47px,13vw,73px)}}
-</style>
-<style>
-.touch{bottom:max(12px,env(safe-area-inset-bottom));padding:0 max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left));user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.touch button{width:clamp(52px,13.5vw,80px);height:clamp(51px,11vh,64px);font-size:15px;font-weight:800}
-.touch [data-key="KeyW"]{background:#ffac72;color:#24130a;border-color:#ffd1b3}
-.touch [data-key="KeyW"].held{background:#ffd0ad}
-@media(any-pointer:coarse){.touch{display:flex}.trip,.hud{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.desktop-help{display:none}}
+
+/* ---------- Trip + dial ---------- */
+.trip{position:fixed;left:var(--pad);bottom:clamp(18px,4vw,55px);min-width:160px;border-left:2px solid var(--accent);padding-left:13px;text-shadow:0 2px 6px #000;pointer-events:none}
+.label{font:700 11px var(--mono);color:var(--muted);letter-spacing:.18em}
+.distance{font:800 clamp(25px,4vw,46px)/1.15 var(--mono);letter-spacing:-.055em}
+.unit{color:var(--muted);font:700 11px var(--mono);letter-spacing:.06em}
+.best{margin-top:4px;font:700 11px var(--mono);color:var(--muted)}
+.hud{position:fixed;right:var(--pad);bottom:clamp(18px,4vw,55px);width:clamp(155px,21vw,278px);pointer-events:none;filter:drop-shadow(0 6px 13px #070912aa)}
+.dial{position:relative;aspect-ratio:1.25;isolation:isolate}.dial svg{width:100%;height:100%;display:block}
+.dial-copy{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;padding-top:15%;text-shadow:0 2px 8px #000}
+.speed{font:900 clamp(35px,6vw,75px)/.92 var(--mono);letter-spacing:-.095em;padding-right:.095em}
+.gear{color:var(--accent);font:800 clamp(16px,2.5vw,25px) var(--mono);margin-top:7px}
+.dial-copy .unit{margin-top:5px}
+.rpm{width:76%;margin:4px auto 0;display:flex;flex-direction:column;gap:5px}
+.rpm-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.rpm-bars i{height:4px;background:#c4d0e64a;border-radius:2px}.rpm-bars i.on{background:#ffbc93}.rpm-bars i:nth-last-child(-n+2).on{background:#ff6455}
+.rpm-desc{display:flex;justify-content:space-between;font:700 9px var(--mono);color:var(--muted);letter-spacing:.05em}
+
+/* ---------- Overlay + cards ---------- */
+.overlay{position:fixed;inset:0;display:flex;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:clamp(18px,5vw,72px) clamp(18px,6vw,90px);background:linear-gradient(90deg,#090e19f2 0,#10101ac9 34%,#10101a24 72%)}
+.card{margin:auto 0;width:min(500px,100%)}
+.kicker{color:var(--accent);font:700 12px var(--mono);letter-spacing:.24em;margin:0 0 10px}
+.card h1,.card h2{margin:0;font-size:clamp(42px,6.2vw,82px);font-weight:900;font-style:italic;line-height:.88;letter-spacing:-.08em}
+.card h2{font-size:clamp(35px,6vw,64px);line-height:1}
+.card h1 b{color:var(--accent)}
+.card p.desc{font-size:clamp(13px,1.4vw,15px);max-width:420px;margin:14px 0 16px;color:#e2e6ee;line-height:1.55}
+.drive{border:0;border-radius:8px;color:#1d100c;background:var(--accent);font-weight:800;letter-spacing:.06em;min-height:48px;min-width:156px;padding:11px 21px}
+.drive:hover{background:var(--accent-2)}
+.secondary{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-height:48px;padding:8px 15px;font-weight:700;letter-spacing:.05em;font-size:13px}
+.secondary:hover{background:#2a3140}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.help{margin-top:15px;font-size:12px;color:#d3dae5;line-height:1.75}
+.help kbd{font:700 11px var(--mono);color:#fff;background:#303746;border-radius:4px;padding:3px 5px}
+.toast{position:fixed;top:clamp(76px,18%,170px);left:50%;transform:translateX(-50%);background:#10151eeb;border:1px solid #ffac7290;color:#fff;border-radius:6px;padding:9px 14px;text-align:center;min-width:120px;max-width:calc(100vw - 30px);pointer-events:none;font:700 12px var(--mono);letter-spacing:.1em}
+
+/* start setup blocks */
+.setup-block{margin-top:12px}
+.field-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:7px;font:700 10.5px var(--mono);letter-spacing:.2em;color:var(--muted)}
+.field-label em{font-style:normal;color:var(--ink);letter-spacing:.08em}
+.driver-form{display:flex;gap:8px}
+.driver-form input{flex:1;min-width:0;height:46px;padding:0 14px;border-radius:8px;background:#0b1019d9;border:1px solid #ffffff4d;font-weight:700;font-size:16px;letter-spacing:.04em}
+.driver-form input::placeholder{color:#8e99a9;font-weight:600;letter-spacing:.02em}
+.driver-form input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px #ffac7233}
+.mini{border:1px solid var(--line);background:#1b2230;border-radius:8px;padding:0 14px;min-height:40px;font:700 11px var(--mono);letter-spacing:.1em}
+.mini:hover{background:#2b3446}
+.hint{margin:7px 1px 0;color:#ffb89a;font-size:12px;font-weight:600}
+.driver-view{display:flex;align-items:center;gap:12px;padding:9px 10px 9px 12px;border-radius:10px;background:#0b1019d0;border:1px solid #ffffff2e}
+.avatar{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#ff7e4d);color:#2a1308;font-weight:900;font-size:17px}
+.dv-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dv-copy b{font-size:16px;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-copy span{font:700 10.5px var(--mono);letter-spacing:.1em;color:var(--muted)}
+.dv-copy span i{font-style:normal;color:var(--accent)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatch{--c:#000;width:36px;height:36px;padding:0;border-radius:50%;border:2px solid #ffffff3d;background:radial-gradient(circle at 32% 28%,#ffffff8c,transparent 40%),var(--c);transition:transform .12s,box-shadow .12s}
+.swatch:hover{transform:scale(1.08)}
+.swatch[aria-checked=true]{border-color:#fff;box-shadow:0 0 0 3px var(--accent)}
+.zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.zone{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:9px 10px;border-radius:10px;background:#0b1019c4;border:1px solid #ffffff2e;min-height:76px}
+.zone:hover{background:#171f2d}
+.zone svg{width:22px;height:22px;fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.zone b{font:800 10.5px/1.2 var(--mono);letter-spacing:.07em}
+.zone small{font-size:10.5px;line-height:1.3;color:var(--muted)}
+.zone[aria-checked=true]{border-color:var(--accent);background:#2a1d1ae0;box-shadow:inset 0 0 0 1px var(--accent)}
+.fair{margin:8px 1px 0;font-size:11px;color:var(--muted);line-height:1.5}
+.start-actions{margin-top:16px}
+.start-actions .btn-row{margin-top:0}
+
+/* leaderboard */
+.board-panel{position:fixed;z-index:6;top:clamp(12px,3vw,36px);right:clamp(12px,3vw,36px);bottom:clamp(12px,3vw,36px);width:min(370px,calc(100vw - 24px));display:flex;flex-direction:column;padding:16px;border-radius:14px;background:#0b1019f4;border:1px solid var(--line);box-shadow:0 20px 50px #000a}
+.board-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.board-head h3{margin:0;font:800 14px var(--sans);letter-spacing:.14em}
+.board-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.board-panel .board-list{overflow-y:auto;flex:1}
+.board-list li{display:grid;grid-template-columns:24px 14px minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;background:#ffffff0d;border:1px solid transparent}
+.board-list li.me{background:#ffac7224;border-color:#ffac7288}
+.board-list .rk{font:800 12px var(--mono);color:var(--muted);text-align:center}
+.board-list li.top .rk{color:var(--accent)}
+.board-list .sw{width:14px;height:14px;border-radius:50%;background:var(--c,#888);border:1px solid #fff8}
+.board-list .nm{display:flex;flex-direction:column;min-width:0;gap:2px}
+.board-list .nm b{font-size:13px;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-list .nm small{font:600 9.5px var(--mono);letter-spacing:.08em;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board-list .km{font:800 14px var(--mono);letter-spacing:-.02em}
+.board-list .km small{font-size:9px;color:var(--muted);margin-left:3px;letter-spacing:.06em}
+.board-list li.gap{display:block;text-align:center;padding:0;background:none;color:var(--muted);font:700 11px var(--mono);line-height:1}
+.board-empty{padding:14px 6px;color:var(--muted);font-size:13px;line-height:1.5;text-align:center;display:block!important;background:none!important}
+
+/* run over */
+.driver-line{margin:8px 0 14px;font:700 12px var(--mono);letter-spacing:.16em;color:var(--accent)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stats>div{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;background:#0b1019c8;border:1px solid #ffffff26}
+.stats .wide{grid-column:1/-1}
+.stats b{font:800 clamp(22px,3vw,30px)/1.1 var(--mono);letter-spacing:-.05em}
+.stats .wide b{font:800 15px var(--mono);letter-spacing:.06em}
+.stats small{font:700 11px var(--mono);color:var(--muted);letter-spacing:.06em}
+.badge{display:inline-block;margin:10px 0 0;padding:5px 10px;border-radius:5px;background:var(--accent);color:#2a1308;font:800 11px var(--mono);letter-spacing:.14em}
+.over-card .field-label{margin-top:14px}
+
+/* ---------- Mobile controls ---------- */
+.touch{display:none;position:fixed;left:0;right:0;bottom:var(--safe-b);justify-content:space-between;align-items:flex-end;gap:10px;padding:0 max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left));pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;--pad-h:96px;--gas-h:118px;--brake-h:76px}
+.touch *{-webkit-tap-highlight-color:transparent}
+.steer-pad{pointer-events:auto;touch-action:none;position:relative;display:flex;align-items:stretch;width:clamp(170px,48vw,250px);height:var(--pad-h);border-radius:20px;background:linear-gradient(180deg,#202837,#0c1017);border:1px solid #ffffff40;box-shadow:inset 0 1px 0 #ffffff2a,inset 0 -10px 18px #0007,0 8px 18px #000a}
+.paddle{flex:0 0 30%;display:grid;place-items:center;padding:0;border:0;background:transparent;pointer-events:auto;color:#c9d2df;touch-action:none}
+.paddle svg{position:relative;z-index:1;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.paddle::before{content:"";position:absolute;top:8px;bottom:8px;width:calc(30% - 10px);background:linear-gradient(180deg,#3a4558,#1a202c);box-shadow:inset 0 1px 0 #ffffff33,0 2px 4px #0009;transition:background .08s,box-shadow .08s,transform .08s}
+.paddle[data-key=KeyA]::before{left:6px;border-radius:16px 8px 8px 16px}
+.paddle[data-key=KeyD]::before{right:6px;border-radius:8px 16px 16px 8px}
+.paddle.held::before{background:linear-gradient(180deg,#ffbc93,#d1763f);box-shadow:inset 0 2px 5px #0006,0 0 14px #ffac7288;transform:scale(.97)}
+.paddle.held{color:#2a1308}
+.wheel-wrap{flex:1;display:grid;place-items:center;min-width:0;pointer-events:none}
+#wheelSvg{width:min(100%,calc(var(--pad-h) - 12px));aspect-ratio:1;filter:drop-shadow(0 3px 5px #000b)}
+.pedals{display:flex;align-items:flex-end;gap:8px;pointer-events:none}
+.pedal{pointer-events:auto;touch-action:none;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:0 0 8px;border:1px solid #ffffff55;border-radius:10px 10px 14px 14px;color:#e8edf5;font:800 11px var(--mono);letter-spacing:.16em;transform-origin:50% 100%;transform:perspective(260px) rotateX(calc(var(--press,0)*17deg)) translateY(calc(var(--press,0)*3px)) scale(calc(1 - var(--press,0)*.035));box-shadow:0 5px 0 #0a0d13,0 9px 14px #000b,inset 0 1px 0 #ffffff77}
+.pedal span{position:relative;z-index:1;text-shadow:0 1px 2px #000}
+.pedal-gas{width:clamp(54px,15vw,70px);height:var(--gas-h);background:radial-gradient(circle,#00000070 1.4px,transparent 1.8px) 0 0/9px 9px,linear-gradient(90deg,#6c7482,#c8d0db 28%,#8f98a6 55%,#5a626f);border-color:#ffc79c;box-shadow:0 5px 0 #0a0d13,0 9px 14px #000b,0 0 16px #ffac7255,inset 0 1px 0 #ffffff77,inset 0 0 0 2px #ffac7233}
+.pedal-gas.held{background:radial-gradient(circle,#00000070 1.4px,transparent 1.8px) 0 0/9px 9px,linear-gradient(90deg,#8d6a4e,#ffcfa4 28%,#d99967 55%,#8a5b3a);box-shadow:0 1px 0 #0a0d13,0 3px 7px #000b,0 0 26px #ffac72cc,inset 0 0 0 2px #ffe0c466}
+.pedal-brake{width:clamp(72px,20vw,98px);height:var(--brake-h);background:repeating-linear-gradient(180deg,#0000 0 7px,#00000066 7px 9px),linear-gradient(90deg,#5b616d,#b5bcc8 30%,#7d8592 60%,#4b525e);border-color:#ff9aa5;box-shadow:0 5px 0 #0a0d13,0 9px 14px #000b,0 0 16px #ff3d5755,inset 0 1px 0 #ffffff77,inset 0 0 0 2px #ff3d5733}
+.pedal-brake.held{background:repeating-linear-gradient(180deg,#0000 0 7px,#00000066 7px 9px),linear-gradient(90deg,#7d4b52,#ffa5b0 30%,#d1596a 60%,#7a2f3b);box-shadow:0 1px 0 #0a0d13,0 3px 7px #000b,0 0 26px #ff3d57cc,inset 0 0 0 2px #ffb7c066}
+
+@media(any-pointer:coarse){
+  :root{--touch-h:118px}
+  .touch{display:flex}
+  .trip,.hud{bottom:calc(var(--safe-b) + var(--touch-h) + 10px)}
+  .desktop-help{display:none}
+}
 @media(any-pointer:coarse) and (orientation:portrait){.hud{width:137px}.trip{min-width:0}}
-@media(any-pointer:coarse) and (orientation:landscape) and (max-height:500px){.hud{width:112px}.hud .dial-copy{padding-top:12%}.hud .speed{font-size:32px}.hud .dial-copy .unit{font-size:9px;margin-top:2px}.hud .gear{font-size:14px;margin-top:2px}.trip{min-width:0}.trip .distance{font-size:25px}}
+@media(any-pointer:coarse) and (orientation:landscape) and (max-height:500px){
+  :root{--touch-h:92px}
+  .touch{--pad-h:86px;--gas-h:92px;--brake-h:62px}
+  .hud{width:112px}.hud .dial-copy{padding-top:12%}.hud .speed{font-size:32px}.hud .dial-copy .unit{font-size:9px;margin-top:2px}.hud .gear{font-size:14px;margin-top:2px}
+  .trip{min-width:0}.trip .distance{font-size:25px}
+}
+@media(max-width:420px){.road-name{letter-spacing:.08em}.action{padding:5px 8px;min-width:38px}.hud{width:140px}.zone small{display:none}.zone{min-height:68px}}
+
+/* start screen on short landscape screens + portrait phones */
+@media(max-height:520px){
+  .overlay{padding:12px 18px}
+  .card h1{font-size:40px}.kicker{margin-bottom:6px}
+  .card p.desc,.help,.fair,.zone small{display:none}
+  .setup-block{margin-top:8px}.field-label{margin-bottom:5px}
+  .driver-form input{height:40px}.driver-view{padding:6px 8px 6px 10px}.avatar{width:32px;height:32px}
+  .swatch{width:30px;height:30px}.zone{min-height:0;padding:7px 9px}.zone svg{width:18px;height:18px}
+  .start-actions{margin-top:10px}.drive,.secondary{min-height:42px}
+  .card h2{font-size:34px}.driver-line{margin:4px 0 8px}.stats b{font-size:22px}.stats>div{padding:6px 10px}
+  .over-card,.pause-card{width:min(100%,640px)}
+  .board-panel{padding:12px}
+}
+@media(max-width:630px) and (orientation:portrait){
+  .overlay{align-items:flex-start;padding-top:max(18px,3vh);background:linear-gradient(180deg,#0b1022e6,#0b102299 62%,transparent 86%)}
+  .card{margin:0}.card h1{font-size:clamp(44px,13vw,64px)}
+  .card p.desc{margin:10px 0 12px;font-size:13px}.setup-block{margin-top:10px}
+  .board-panel{top:10px;bottom:10px;right:10px;left:10px;width:auto}
+}
+@media(prefers-reduced-motion:reduce){.flash.on{animation-duration:.01s}.heart.pop{animation:none}}
 </style>
 </head>
 <body>
-<div id="stage"></div><div class="vignette"></div>
-<header><div><div class="brand">AFTER<b>GLOW</b></div><span id="roadName" class="road-name">SUNSET COAST</span></div>
-<div id="actions" class="actions" hidden>
-<button class="action" id="view" title="สลับมุมกล้อง (C)" aria-label="สลับมุมกล้อง">CAM <span id="cam">01</span></button>
-<button class="action" id="sound" title="เปิดหรือปิดเสียง (M)" aria-label="เปิดหรือปิดเสียง" aria-pressed="true">เสียง</button>
-<button class="action" id="pause" title="พักเกม (P)" aria-label="พักเกม"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
-</div></header>
-<section id="trip" class="trip" aria-label="ระยะทาง" hidden><div class="label">DISTANCE</div><span id="distance" class="distance">0.00</span> <span class="unit">KM</span><div class="best">BEST <span id="best">0.00</span> KM</div></section>
-<section id="hud" class="hud" aria-label="มาตรวัดรถ" hidden>
-<div class="dial"><svg viewBox="0 0 240 200" aria-hidden="true"><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#0e111ce0" stroke-width="23"/><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#ffffff64" stroke-width="2"/><path id="speedArc" d="M49 171a95 95 0 1 1 142 0" pathLength="100" fill="none" stroke="#ffaf77" stroke-width="4" stroke-dasharray="0 100"/><g id="ticks"></g></svg>
-<div class="dial-copy"><span id="speed" class="speed">000</span><span class="unit">KM/H</span><span id="gear" class="gear">N</span></div></div>
-<div class="rpm"><div id="rpmBars" class="rpm-bars"></div><div class="rpm-desc"><span>RPM</span><span id="rpm">0.9 × 1000</span></div></div>
+<div id="stage"></div><div class="vignette"></div><div id="flash" class="flash"></div>
+<header id="header">
+  <div>
+    <div class="brand">AFTER<b>GLOW</b></div>
+    <span id="roadName" class="road-name">SUNSET COAST</span>
+    <div id="hearts" class="hearts" role="img" aria-label="3 of 3 hearts remaining">
+      <svg class="heart" viewBox="0 0 24 22" aria-hidden="true"><path d="M12 20.5C5 15.5 2 12 2 8.2 2 5.3 4.2 3 7 3c2 0 3.9 1.1 5 2.9C13.1 4.1 15 3 17 3c2.8 0 5 2.3 5 5.2 0 3.8-3 7.3-10 12.3z"/></svg>
+      <svg class="heart" viewBox="0 0 24 22" aria-hidden="true"><path d="M12 20.5C5 15.5 2 12 2 8.2 2 5.3 4.2 3 7 3c2 0 3.9 1.1 5 2.9C13.1 4.1 15 3 17 3c2.8 0 5 2.3 5 5.2 0 3.8-3 7.3-10 12.3z"/></svg>
+      <svg class="heart" viewBox="0 0 24 22" aria-hidden="true"><path d="M12 20.5C5 15.5 2 12 2 8.2 2 5.3 4.2 3 7 3c2 0 3.9 1.1 5 2.9C13.1 4.1 15 3 17 3c2.8 0 5 2.3 5 5.2 0 3.8-3 7.3-10 12.3z"/></svg>
+    </div>
+  </div>
+  <div id="actions" class="actions" hidden>
+    <button class="action" id="view" title="Switch camera (C)" aria-label="Switch camera">CAM <span id="cam">01</span></button>
+    <button class="action" id="sound" title="Toggle sound (M)" aria-label="Toggle sound" aria-pressed="true">SOUND ON</button>
+    <button class="action" id="pause" title="Pause (P)" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
+  </div>
+</header>
+<section id="trip" class="trip" aria-label="Trip distance" hidden><div class="label">DISTANCE</div><span id="distance" class="distance">0.00</span> <span class="unit">KM</span><div class="best">BEST <span id="best">0.00</span> KM</div></section>
+<section id="hud" class="hud" aria-label="Instrument cluster" hidden>
+  <div class="dial"><svg viewBox="0 0 240 200" aria-hidden="true"><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#0e111ce0" stroke-width="23"/><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#ffffff64" stroke-width="2"/><path id="speedArc" d="M49 171a95 95 0 1 1 142 0" pathLength="100" fill="none" stroke="#ffaf77" stroke-width="4" stroke-dasharray="0 100"/><g id="ticks"></g></svg>
+  <div class="dial-copy"><span id="speed" class="speed">000</span><span class="unit">KM/H</span><span id="gear" class="gear">N</span></div></div>
+  <div class="rpm"><div id="rpmBars" class="rpm-bars"></div><div class="rpm-desc"><span>RPM</span><span id="rpm">0.9 x1000</span></div></div>
 </section>
-<div class="touch" id="touch" hidden aria-label="ปุ่มขับรถ"><div><button data-key="KeyA" aria-label="เลี้ยวซ้าย">◀</button><button data-key="KeyD" aria-label="เลี้ยวขวา">▶</button></div><div><button data-key="KeyS" aria-label="เบรก">เบรก</button><button data-key="KeyW" aria-label="เร่ง">เร่ง</button></div></div>
+<div class="touch" id="touch" hidden aria-label="Driving controls">
+  <div class="steer-pad" id="steerPad" role="group" aria-label="Steering control. Press left or right, or slide your thumb across the pad.">
+    <button class="paddle" data-key="KeyA" aria-label="Steer left" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="wheel-wrap">
+      <svg id="wheelSvg" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#10131a" stroke-width="10"/>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#4a5262" stroke-width="10" stroke-dasharray="3 5" opacity=".6"/>
+        <path d="M8 50h84" stroke="#10131a" stroke-width="8" stroke-linecap="round"/>
+        <path d="M50 50v40" stroke="#10131a" stroke-width="8" stroke-linecap="round"/>
+        <rect x="42" y="2" width="16" height="9" rx="2" fill="#ffac72"/>
+        <circle cx="50" cy="50" r="12" fill="#232a37" stroke="#ffffff55" stroke-width="1.5"/>
+        <text x="50" y="54" text-anchor="middle" font-family="sans-serif" font-style="italic" font-weight="900" font-size="11" fill="#ffac72">R35</text>
+      </svg>
+    </div>
+    <button class="paddle" data-key="KeyD" aria-label="Steer right" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div class="pedals">
+    <button class="pedal pedal-brake" id="pedalBrake" data-key="KeyS" aria-label="Brake pedal"><span>BRAKE</span></button>
+    <button class="pedal pedal-gas" id="pedalGas" data-key="KeyW" aria-label="Gas pedal"><span>GAS</span></button>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" hidden></div>
-<main id="overlay" class="overlay"><div id="startCard" class="card"><p class="kicker">ENDLESS HIGHWAY / R35</p><h1>AFTER<b>GLOW</b></h1><p class="desc">ขับ GT‑R R35 บนทางหลวงยามเย็น แซงรถจราจรแล้วทำสถิติระยะทางของคุณ</p><button class="drive" id="start">เริ่มขับ <span aria-hidden="true">↗</span></button><div class="help desktop-help"><kbd>W</kbd> เร่ง &nbsp; <kbd>S</kbd> เบรก &nbsp; <kbd>A</kbd> <kbd>D</kbd> เลี้ยว<br>ลากเมาส์เพื่อมองรอบรถ &nbsp; <kbd>C</kbd> สลับกล้อง</div></div>
-<div id="pauseCard" class="card" hidden><p class="kicker">AFTERGLOW</p><h2 id="pauseTitle">พักเกม</h2><p class="desc" id="pauseText"></p><button class="drive" id="resume">ขับต่อ</button><button class="secondary" id="restart">เริ่มใหม่</button></div></main>
-<noscript>เปิด JavaScript เพื่อเล่น Afterglow</noscript>
+<aside id="boardPanel" class="board-panel" aria-label="Leaderboard" hidden>
+  <div class="board-head"><h3>LEADERBOARD</h3><button class="mini" id="boardClose" aria-label="Close leaderboard">CLOSE</button></div>
+  <ol id="boardList" class="board-list"></ol>
+</aside>
+<main id="overlay" class="overlay">
+  <div id="startCard" class="card start-card">
+    <p class="kicker">ENDLESS HIGHWAY / R35</p>
+    <h1>AFTER<b>GLOW</b></h1>
+    <p class="desc">Take the GT-R R35 down endless dusk highways. Thread the traffic, protect your hearts and set your distance record.</p>
+
+    <section class="setup-block" aria-label="Driver">
+      <div class="field-label"><span>DRIVER</span></div>
+      <form id="driverForm" class="driver-form" autocomplete="off" novalidate>
+        <input id="driverName" type="text" maxlength="14" placeholder="Enter your driver name" aria-label="Driver name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go">
+        <button type="submit" class="mini" id="saveName">SAVE</button>
+      </form>
+      <p id="nameHint" class="hint" role="alert" hidden>Enter your name to save your distance</p>
+      <div id="driverView" class="driver-view" hidden>
+        <span class="avatar" id="driverInitial" aria-hidden="true">A</span>
+        <div class="dv-copy"><b id="driverTitle">DRIVER</b><span>BEST <i id="driverBest">0.00</i> KM · <i id="driverRuns">0</i> RUNS</span></div>
+        <button class="mini" id="changeName" type="button" aria-label="Change driver name">CHANGE</button>
+      </div>
+    </section>
+
+    <section class="setup-block" aria-label="Paint color">
+      <div class="field-label"><span>PAINT</span><em id="paintName">Bayside Blue</em></div>
+      <div class="swatches" id="swatches" role="radiogroup" aria-label="Paint color"></div>
+    </section>
+
+    <section class="setup-block" aria-label="Start zone">
+      <div class="field-label"><span>START ZONE</span><em>LIVE PREVIEW</em></div>
+      <div class="zones" id="zones" role="radiogroup" aria-label="Start zone">
+        <button class="zone" role="radio" aria-checked="true" data-zone="coast"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17" cy="7" r="3"/><path d="M2 15c3-3 5 3 8 0s5 3 8 0 4 2 4 2M2 20c3-3 5 3 8 0s5 3 8 0 4 2 4 2"/></svg><b>SUNSET COAST</b><small>Ocean cliffs, palms and a lighthouse</small></button>
+        <button class="zone" role="radio" aria-checked="false" data-zone="valley"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l5 8h-3l4 7H6l4-7H7zM12 18v3"/></svg><b>PINE VALLEY</b><small>Mountain forest pass</small></button>
+        <button class="zone" role="radio" aria-checked="false" data-zone="viaduct"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19h20M12 4v15M12 6L4 17M12 6l8 11M12 10L8 17M12 10l4 7"/></svg><b>SKYLINE VIADUCT</b><small>Cable-stayed bridge ahead</small></button>
+      </div>
+      <p class="fair">Every run scores from 0.00 KM, wherever you start.</p>
+    </section>
+
+    <div class="start-actions">
+      <div class="btn-row">
+        <button class="drive" id="start">START DRIVE <span aria-hidden="true">↗</span></button>
+        <button class="secondary" id="boardToggle" aria-expanded="false" aria-controls="boardPanel">LEADERBOARD</button>
+      </div>
+      <div class="help desktop-help"><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>Drag the mouse to look around &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>P</kbd> pause</div>
+    </div>
+  </div>
+
+  <div id="pauseCard" class="card pause-card" hidden>
+    <p class="kicker">AFTERGLOW</p>
+    <h2 id="pauseTitle">PAUSED</h2>
+    <p class="desc" id="pauseText"></p>
+    <div class="btn-row">
+      <button class="drive" id="resume">RESUME</button>
+      <button class="secondary" id="restart">RESTART</button>
+      <button class="secondary" id="garagePause">GARAGE / MAP</button>
+    </div>
+  </div>
+
+  <div id="overCard" class="card over-card" hidden>
+    <p class="kicker">AFTERGLOW</p>
+    <h2>RUN OVER</h2>
+    <p class="driver-line" id="overDriver">DRIVER</p>
+    <div class="stats">
+      <div><span class="label">DISTANCE</span><b id="overDistance">0.00</b><small>KM</small></div>
+      <div><span class="label">PERSONAL BEST</span><b id="overBest">0.00</b><small>KM</small></div>
+      <div class="wide"><span class="label">START ZONE</span><b id="overZone">SUNSET COAST</b></div>
+    </div>
+    <span class="badge" id="overBadge" hidden>NEW PERSONAL BEST</span>
+    <div class="field-label"><span>LEADERBOARD</span></div>
+    <ol id="overBoard" class="board-list"></ol>
+    <div class="btn-row">
+      <button class="drive" id="again">DRIVE AGAIN</button>
+      <button class="secondary" id="garageOver">GARAGE / MAP</button>
+    </div>
+  </div>
+</main>
+<noscript>Turn on JavaScript to play Afterglow.</noscript>
 <!-- INLINE_GAME -->
 </body>
 </html>
