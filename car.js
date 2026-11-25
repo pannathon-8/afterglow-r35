@@ -550,7 +550,7 @@ function makeWing(chassis, bodyPaint) {
   lineTrim(chassis, bumperReflector, [[-.26, 1.157, -2.244], [0, 1.158, -2.247], [.26, 1.157, -2.244]], .011);
 }
 
-function makeRear(chassis, brakeLight) {
+function makeRear(chassis, brakeLight, reverseLight = reverseLamp) {
   const surfaceZ = x => -2.438 + .080 * x * x;
   const rearPanel = (mat, points, depth = 0) => fascia(chassis, mat, points.map(([x, y]) => [x, y, surfaceZ(x) - depth]), true);
   // Sculpted carbon-fiber lower rear diffuser & exhaust tunnels
@@ -599,7 +599,7 @@ function makeRear(chassis, brakeLight) {
       lamp(lampDisc, lampOff, radius * .83, 1, -.002);
       lamp(lampRing, brakeLight, radius * .90, .044, -.013);
       lamp(fineRing, bumperReflector, radius * .66, .062, -.014);
-      lamp(lampDisc, reverseLamp, radius * .28, 1, -.011);
+      lamp(lampDisc, reverseLight, radius * .28, 1, -.011);
       const glow = attach(chassis, aspectBadge, rearGlow, side * x, y, z - .040, radius * 3.25, radius * 3.25, 1);
       glow.rotation.y = angle;
       glow.renderOrder = 3;
@@ -607,7 +607,7 @@ function makeRear(chassis, brakeLight) {
     // Side rear bumper air outlets & reflectors
     mount(intake, [[.865, .585], [.945, .612], [.952, .488], [.872, .472]], .022);
     mount(bumperReflector, [[.518, .454], [.742, .490], [.760, .479], [.751, .462], [.528, .434]], .025);
-    mount(reverseLamp, [[.308, .479], [.402, .479], [.422, .465], [.401, .447], [.314, .449]], .027);
+    mount(reverseLight, [[.308, .479], [.402, .479], [.422, .465], [.401, .447], [.314, .449]], .027);
     // Quad burnt-titanium exhaust tips (metallic outer barrel + rolled lip + blue-tinted burnt-titanium inner ring)
     for (const [x, radius, length] of [[.564, .096, .158], [.762, .100, .148]]) {
       const y = .344;
@@ -792,7 +792,10 @@ function makeR35() {
   const brakeLight = new THREE.MeshStandardMaterial({
     color: 0xf92c3b, emissive: 0xff192a, emissiveIntensity: 1.25, roughness: .28
   });
-  makeRear(exterior, brakeLight);
+  const reverseLight = new THREE.MeshStandardMaterial({
+    color: 0xdce6f2, emissive: 0xeaf4ff, emissiveIntensity: .12, roughness: .24, metalness: .2
+  });
+  makeRear(exterior, brakeLight, reverseLight);
 
   // Wheels & non-spinning Brembo caliper hubs attached directly to body (not chassis)
   const wheels = [];
@@ -1451,7 +1454,7 @@ function makeR35() {
     part.receiveShadow = true;
   }
   scene.add(root);
-  return { root, body, chassis, wheels, cockpit, cabin, steering, brakeLight, setPaint, updateInterior, setCockpitMode };
+  return { root, body, chassis, wheels, cockpit, cabin, steering, brakeLight, reverseLight, setPaint, updateInterior, setCockpitMode };
 }
 
 const trafficColors = [0xaaaeb3, 0x433c47, 0x344e53, 0x905044, 0xb4a397, 0x4c5980];

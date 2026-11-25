@@ -170,6 +170,72 @@ const grade = z => 2.8 * Math.sin(z / 230) + 6.8 * Math.sin(z / 710);
 const yawAt = z => Math.atan2(center(z + 1) - center(z - 1), 2);
 const valleyAt = z => smooth(3700, 10000, z);
 const bridgeStartAt = z => Math.max(0,Math.floor(z/10000)*10000);
+
+const roadsideSiteSpecs = [
+  { offsetZ: 880, minCycle: 1, type: 'overlook', id: 'viaduct-lookout', name: 'SKYLINE VIADUCT LOOKOUT', subtitle: 'Bridge & Gorge Panorama', halfLen: 58, bayHalfLen: 21, apronWidth: 15.8, parkRight: 13.4, side: -1, camSide: 'viaduct' },
+  { offsetZ: 1400, minCycle: 0, type: 'fuel', id: 'coastal-fuel', name: 'COASTAL FUEL STOP', subtitle: '24H Service & Fuel', halfLen: 76, bayHalfLen: 23, apronWidth: 20.0, parkRight: 13.3, side: -1 },
+  { offsetZ: 2600, minCycle: 0, type: 'overlook', id: 'sunset-cliff', name: 'SUNSET CLIFF OVERLOOK', subtitle: 'Pacific Dusk Terrace', halfLen: 58, bayHalfLen: 21, apronWidth: 15.8, parkRight: 13.4, side: -1, camSide: 'ocean' },
+  { offsetZ: 4600, minCycle: 0, type: 'fuel', id: 'coast-plaza', name: 'COASTLINE SERVICE PLAZA', subtitle: '24H Service & Fuel', halfLen: 76, bayHalfLen: 23, apronWidth: 20.0, parkRight: 13.3, side: -1 },
+  { offsetZ: 7850, minCycle: 0, type: 'fuel', id: 'pine-fuel', name: 'PINE PASS FUEL & CAFE', subtitle: 'Mountain Rest & Fuel', halfLen: 76, bayHalfLen: 23, apronWidth: 20.0, parkRight: 13.3, side: -1 },
+  { offsetZ: 8950, minCycle: 0, type: 'overlook', id: 'pine-ridge', name: 'PINE RIDGE VISTA', subtitle: 'Alpine Valley Overlook', halfLen: 58, bayHalfLen: 21, apronWidth: 15.8, parkRight: 13.4, side: -1, camSide: 'valley' }
+];
+function getRoadsideSites(minZ, maxZ) {
+  const out = [];
+  const c0 = Math.max(0, Math.floor((minZ - 200) / 10000));
+  const c1 = Math.max(0, Math.floor((maxZ + 200) / 10000));
+  for (let cycle = c0; cycle <= c1; cycle++) {
+    const base = cycle * 10000;
+    for (const spec of roadsideSiteSpecs) {
+      if (cycle < spec.minCycle) continue;
+      const z = base + spec.offsetZ;
+      if (z + spec.halfLen < minZ || z - spec.halfLen > maxZ) continue;
+      out.push({ ...spec, cycle, z, uid: `${spec.id}-${cycle}` });
+    }
+  }
+  return out;
+}
+function roadsideSiteAt(z, pad = 0) {
+  const c = Math.max(0, Math.floor(z / 10000));
+  for (let cycle = Math.max(0, c - 1); cycle <= c + 1; cycle++) {
+    const base = cycle * 10000;
+    for (const spec of roadsideSiteSpecs) {
+      if (cycle < spec.minCycle) continue;
+      const sz = base + spec.offsetZ;
+      if (Math.abs(z - sz) <= spec.halfLen + pad) {
+        return { ...spec, cycle, z: sz, uid: `${spec.id}-${cycle}` };
+      }
+    }
+  }
+  return null;
+}
+function roadRightBound(z) {
+  const baseRight = -roadWidth + .83;
+  const site = roadsideSiteAt(z, 0);
+  if (!site) return baseRight;
+  const dz = Math.abs(z - site.z);
+  const taper = 1 - smooth(site.halfLen - 28, site.halfLen, dz);
+  return mix(baseRight, -site.parkRight, taper);
+}
+function lastFuelStationBefore(z) {
+  const sites = getRoadsideSites(Math.max(0, z - 12000), z + 1500).filter(s => s.type === 'fuel');
+  let best = null;
+  for (const s of sites) {
+    if (s.z <= z + 30 && (!best || s.z > best.z)) best = s;
+  }
+  if (best) return best;
+  const fallback = getRoadsideSites(0, 2000).find(s => s.type === 'fuel');
+  return fallback || { type: 'fuel', id: 'coastal-fuel', name: 'COASTAL FUEL STOP', z: 1400, parkRight: 13.3, side: -1 };
+}
+function nextRoadsideSite(z, type = null, maxAhead = 3500) {
+  const sites = getRoadsideSites(z - 25, z + maxAhead);
+  let best = null;
+  for (const s of sites) {
+    if (type && s.type !== type) continue;
+    if (s.z >= z - 20 && (!best || s.z < best.z)) best = s;
+  }
+  return best;
+}
+
 const groundOffsets=[-780,-600,-470,-355,-265,-190,-140,-100,-73,-53,-38,-26,-17,-11,-7.3,
   7.3,11,17,26,38,53,73,100,140,190,265,355,470,600,780];
 const terrainHeight = (x, z) => {
@@ -186,8 +252,18 @@ const terrainHeight = (x, z) => {
   const gorge = smooth(nearest-100,nearest+80,z)*(1-smooth(nearest+570,nearest+740,z));
   const spurs=smooth(48,270,bank)*(14*Math.abs(Math.sin(z*.019+x*.037))+
     11*Math.sin(z*.029-x*.015)*Math.cos(z*.009+x*.043));
-  return grade(z) - .2 + (x > 0 ? hill+cliff+spurs : mix(coast, hill * .75+cliff+spurs, valley))
+  let h = grade(z) - .2 + (x > 0 ? hill+cliff+spurs : mix(coast, hill * .75+cliff+spurs, valley))
     - gorge*48*(1-smooth(55,250,bank));
+  if (x < -6.2 && x > -38) {
+    const site = roadsideSiteAt(z, 20);
+    if (site) {
+      const dz = Math.abs(z - site.z);
+      const along = 1 - smooth(site.halfLen - 6, site.halfLen + 20, dz);
+      const across = 1 - smooth(site.apronWidth + 2, site.apronWidth + 16, -x);
+      h = mix(h, grade(z) - .14, along * across);
+    }
+  }
+  return h;
 };
 // Match the triangles under a prop even where the analytic hillside bends sharply between vertices.
 function surfaceHeight(x,z){
@@ -502,6 +578,7 @@ function makeChunk(id) {
       dashes.push([x + stripe, y + .024, z - start, .112, .012, 5.7, yaw]);
     for (const side of [-1, 1]) {
       const verge = side * 7.15;
+      if (side === -1 && roadsideSiteAt(z, 2)) continue;
       const roadsideRail = side === -1 || Math.sin(z / 122) < .36;
       if (!roadsideRail) continue;
       rails.push([x + verge, y + .57, z - start, .13, .17, 8.05 / Math.cos(yaw), yaw]);
@@ -515,6 +592,7 @@ function makeChunk(id) {
     const z = start + rand(seed + .8) * size;
     const side = rand(seed + .2) < .69 - valleyAt(z) * .2 ? 1 : -1;
     const x = side * (11 + Math.pow(rand(seed + .1), 1.8) * 250);
+    if (x < -5.8 && x > -34 && roadsideSiteAt(z, 16)) continue;
     const y = surfaceHeight(x, z);
     if (y < -12.5) continue;
     const worldX = center(z) + x;
@@ -548,7 +626,7 @@ function makeChunk(id) {
 function updateWorld(z, now = 0) {
   const base = Math.floor(z / size);
   for (const [id, group] of chunks) {
-    if (id >= base - 1 && id <= base + 9) continue;
+    if (id >= base - 2 && id <= base + 9) continue;
     scene.remove(group);
     group.traverse(obj => {
       if (obj.isInstancedMesh) obj.dispose();
@@ -556,7 +634,7 @@ function updateWorld(z, now = 0) {
     });
     chunks.delete(id);
   }
-  for (let id = base - 1; id <= base + 9; id++) {
+  for (let id = base - 2; id <= base + 9; id++) {
     if (!chunks.has(id)) chunks.set(id, makeChunk(id));
     chunks.get(id).position.z = id * size - z;
   }

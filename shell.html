@@ -45,6 +45,39 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
 .distance{font:800 clamp(25px,4vw,46px)/1.15 var(--mono);letter-spacing:-.055em}
 .unit{color:var(--muted);font:700 11px var(--mono);letter-spacing:.06em}
 .best{margin-top:4px;font:700 11px var(--mono);color:var(--muted)}
+.fuel-row{display:flex;align-items:center;gap:6px;margin-top:6px;width:154px}
+.fuel-lbl{font:800 9.5px var(--mono);letter-spacing:.14em;color:var(--muted)}
+.fuel-track{flex:1;min-width:58px;height:6px;border-radius:3px;background:#ffffff24;overflow:hidden;border:1px solid #ffffff26}
+.fuel-track i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff9e42,#ffd07a);border-radius:2px;transition:width .12s linear,background .2s}
+.fuel-row.low .fuel-track i{background:#ff9436}
+.fuel-row.low .fuel-pct,.fuel-row.low .fuel-lbl{color:#ffb86c}
+.fuel-row.crit .fuel-track i{background:var(--red)}
+.fuel-row.crit .fuel-pct,.fuel-row.crit .fuel-lbl{color:#ff6e80;animation:fuelPulse .8s ease-in-out infinite}
+@keyframes fuelPulse{0%,100%{opacity:1}50%{opacity:.45}}
+.fuel-pct{font:800 10px var(--mono);color:var(--ink);min-width:30px;text-align:right}
+.gear.rev{color:#ff5b6e;text-shadow:0 0 12px #ff3d57aa}
+.spot-hint{position:fixed;top:clamp(14px,3.2vw,44px);left:50%;transform:translateX(-50%);background:#0d1420e6;border:1px solid #ffbe6b80;color:#ffdfae;border-radius:999px;padding:6px 14px;font:800 11px var(--mono);letter-spacing:.12em;white-space:nowrap;pointer-events:none;box-shadow:0 6px 18px #0007}
+.spot-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:clamp(22px,4vw,52px);z-index:4;display:flex;flex-direction:column;align-items:center;gap:8px;padding:11px 15px;border-radius:12px;background:#0c121df2;border:1px solid #ffac7288;box-shadow:0 12px 34px #000b;min-width:min(260px,calc(100vw - 28px));max-width:calc(100vw - 28px);text-align:center}
+.spot-bar .spot-title{font:800 11px var(--mono);letter-spacing:.16em;color:var(--accent)}
+.spot-bar .spot-sub{font-size:12px;color:#d8e0ec;line-height:1.35}
+.spot-bar .spot-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.spot-bar .spot-btn{border:0;border-radius:8px;padding:9px 16px;min-height:40px;font:800 11.5px var(--mono);letter-spacing:.1em;background:var(--accent);color:#1f100a}
+.spot-bar .spot-btn:hover{background:var(--accent-2)}
+.spot-bar .spot-btn:disabled{opacity:.7;cursor:default}
+.spot-bar .spot-btn.alt{background:#1a2232;color:var(--ink);border:1px solid var(--line)}
+.spot-bar .spot-btn.alt:hover{background:#293349}
+.scenic-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom));z-index:5;display:flex;align-items:center;gap:14px;padding:10px 14px 10px 18px;border-radius:999px;background:#0b1019e8;border:1px solid #ffbe6b80;box-shadow:0 12px 32px #000a;max-width:calc(100vw - 24px)}
+.scenic-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.scenic-copy b{font:800 11.5px var(--mono);letter-spacing:.14em;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scenic-copy small{font-size:11px;color:var(--muted)}
+.scenic-exit{border:0;border-radius:999px;padding:8px 15px;min-height:36px;background:var(--accent);color:#1f100a;font:800 11px var(--mono);letter-spacing:.1em;white-space:nowrap}
+.scenic-exit:hover{background:var(--accent-2)}
+body.scenic-active header,body.scenic-active #trip,body.scenic-active #hud,body.scenic-active #touch,body.scenic-active #spotHint,body.scenic-active #spotBar{visibility:hidden;pointer-events:none}
+.sync-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:7px 10px;border-radius:8px;background:#ffffff0d;border:1px solid #ffffff20;font:700 10.5px var(--mono);letter-spacing:.08em;color:var(--muted)}
+.sync-bar.ok{border-color:#4ae39655;color:#9ef2c8}
+.sync-bar.warn{border-color:#ffbe6b66;color:#ffd59e}
+.sync-bar.err{border-color:#ff3d5788;color:#ff9aa6;background:#ff3d571a}
+.sync-bar .mini{min-height:28px;padding:0 10px;font-size:10px}
 .hud{position:fixed;right:var(--pad);bottom:clamp(18px,4vw,55px);width:clamp(155px,21vw,278px);pointer-events:none;filter:drop-shadow(0 6px 13px #070912aa)}
 .dial{position:relative;aspect-ratio:1.25;isolation:isolate}.dial svg{width:100%;height:100%;display:block}
 .dial-copy{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;padding-top:15%;text-shadow:0 2px 8px #000}
@@ -149,6 +182,9 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
 .wheel-wrap{flex:1;display:grid;place-items:center;min-width:0;pointer-events:none}
 #wheelSvg{width:min(100%,calc(var(--pad-h) - 12px));aspect-ratio:1;filter:drop-shadow(0 3px 5px #000b)}
 .pedals{display:flex;align-items:flex-end;gap:8px;pointer-events:none}
+.brake-col{display:flex;flex-direction:column;align-items:stretch;gap:6px;pointer-events:none}
+.gear-toggle{pointer-events:auto;touch-action:none;height:34px;border-radius:8px;border:1px solid #ffffff52;background:#111723e8;color:var(--ink);font:800 11px var(--mono);letter-spacing:.12em;display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:0 4px 10px #0008}
+.gear-toggle[aria-pressed=true]{background:#4a1720f0;border-color:#ff6b7f;color:#ffb4be;box-shadow:0 0 14px #ff3d5777}
 .pedal{pointer-events:auto;touch-action:none;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:0 0 8px;border:1px solid #ffffff55;border-radius:10px 10px 14px 14px;color:#e8edf5;font:800 11px var(--mono);letter-spacing:.16em;transform-origin:50% 100%;transform:perspective(260px) rotateX(calc(var(--press,0)*17deg)) translateY(calc(var(--press,0)*3px)) scale(calc(1 - var(--press,0)*.035));box-shadow:0 5px 0 #0a0d13,0 9px 14px #000b,inset 0 1px 0 #ffffff77}
 .pedal span{position:relative;z-index:1;text-shadow:0 1px 2px #000}
 .pedal-gas{width:clamp(54px,15vw,70px);height:var(--gas-h);background:radial-gradient(circle,#00000070 1.4px,transparent 1.8px) 0 0/9px 9px,linear-gradient(90deg,#6c7482,#c8d0db 28%,#8f98a6 55%,#5a626f);border-color:#ffc79c;box-shadow:0 5px 0 #0a0d13,0 9px 14px #000b,0 0 16px #ffac7255,inset 0 1px 0 #ffffff77,inset 0 0 0 2px #ffac7233}
@@ -160,14 +196,18 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
   :root{--touch-h:118px}
   .touch{display:flex}
   .trip,.hud{bottom:calc(var(--safe-b) + var(--touch-h) + 10px)}
+  .spot-bar{bottom:calc(var(--safe-b) + var(--touch-h) + 134px)}
   .desktop-help{display:none}
 }
-@media(any-pointer:coarse) and (orientation:portrait){.hud{width:137px}.trip{min-width:0}}
+@media(any-pointer:coarse) and (orientation:portrait){.hud{width:137px}.trip{min-width:0}.fuel-row{width:134px}.spot-hint{top:96px;font-size:10px;padding:5px 11px}}
 @media(any-pointer:coarse) and (orientation:landscape) and (max-height:500px){
   :root{--touch-h:92px}
   .touch{--pad-h:86px;--gas-h:92px;--brake-h:62px}
+  .gear-toggle{height:24px;font-size:10px}
   .hud{width:112px}.hud .dial-copy{padding-top:12%}.hud .speed{font-size:32px}.hud .dial-copy .unit{font-size:9px;margin-top:2px}.hud .gear{font-size:14px;margin-top:2px}
-  .trip{min-width:0}.trip .distance{font-size:25px}
+  .trip{min-width:0}.trip .distance{font-size:25px}.fuel-row{width:132px;margin-top:4px}
+  .spot-bar{bottom:calc(var(--safe-b) + 16px);padding:8px 12px;min-width:210px}
+  .spot-hint{top:12px;font-size:10px;padding:4px 10px}
 }
 @media(max-width:520px){header{gap:8px}.road-name{font-size:10px;letter-spacing:.08em;margin-top:6px}.hearts{margin-top:7px}.actions{gap:5px}.action{padding:5px 7px;min-width:34px;min-height:34px;font-size:10px;letter-spacing:.03em;border-radius:6px}}
 @media(max-width:420px){.hud{width:140px}.zone small{display:none}.zone{min-height:68px}}
@@ -213,12 +253,25 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
     <button class="action" id="pause" title="Pause (P)" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
   </div>
 </header>
-<section id="trip" class="trip" aria-label="Trip distance" hidden><div class="label">DISTANCE</div><span id="distance" class="distance">0.00</span> <span class="unit">KM</span><div class="best">BEST <span id="best">0.00</span> KM</div></section>
+<section id="trip" class="trip" aria-label="Trip distance" hidden><div class="label">DISTANCE</div><span id="distance" class="distance">0.00</span> <span class="unit">KM</span><div class="best">BEST <span id="best">0.00</span> KM</div><div class="fuel-row" id="fuelWrap" aria-label="Fuel level"><span class="fuel-lbl">FUEL</span><div class="fuel-track"><i id="fuelBar"></i></div><span id="fuelPct" class="fuel-pct">100%</span></div></section>
 <section id="hud" class="hud" aria-label="Instrument cluster" hidden>
   <div class="dial"><svg viewBox="0 0 240 200" aria-hidden="true"><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#0e111ce0" stroke-width="23"/><path d="M49 171a95 95 0 1 1 142 0" fill="none" stroke="#ffffff64" stroke-width="2"/><path id="speedArc" d="M49 171a95 95 0 1 1 142 0" pathLength="100" fill="none" stroke="#ffaf77" stroke-width="4" stroke-dasharray="0 100"/><g id="ticks"></g></svg>
   <div class="dial-copy"><span id="speed" class="speed">000</span><span class="unit">KM/H</span><span id="gear" class="gear">N</span></div></div>
   <div class="rpm"><div id="rpmBars" class="rpm-bars"></div><div class="rpm-desc"><span>RPM</span><span id="rpm">0.9 x1000</span></div></div>
 </section>
+<div id="spotHint" class="spot-hint" hidden></div>
+<div id="spotBar" class="spot-bar" hidden>
+  <div id="spotTitle" class="spot-title">SERVICE BAY</div>
+  <div id="spotSub" class="spot-sub"></div>
+  <div class="spot-btns">
+    <button type="button" id="spotAction" class="spot-btn">REFUEL</button>
+    <button type="button" id="spotAlt" class="spot-btn alt" hidden>END RUN</button>
+  </div>
+</div>
+<div id="scenicBar" class="scenic-bar" hidden>
+  <div class="scenic-copy"><b id="scenicTitle">SUNSET CLIFF OVERLOOK</b><small id="scenicSub">Drag to look around · Press V or Esc to return</small></div>
+  <button type="button" id="scenicExit" class="scenic-exit">EXIT VIEW</button>
+</div>
 <div class="touch" id="touch" hidden aria-label="Driving controls">
   <div class="steer-pad" id="steerPad" role="group" aria-label="Steering control. Press left or right, or slide your thumb across the pad.">
     <button class="paddle" data-key="KeyA" aria-label="Steer left" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -236,13 +289,17 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
     <button class="paddle" data-key="KeyD" aria-label="Steer right" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
   </div>
   <div class="pedals">
-    <button class="pedal pedal-brake" id="pedalBrake" data-key="KeyS" aria-label="Brake pedal"><span>BRAKE</span></button>
+    <div class="brake-col">
+      <button type="button" class="gear-toggle" id="gearToggle" aria-label="Shift between Drive and Reverse" aria-pressed="false">GEAR D</button>
+      <button class="pedal pedal-brake" id="pedalBrake" data-key="KeyS" aria-label="Brake pedal or hold to reverse"><span>BRAKE</span></button>
+    </div>
     <button class="pedal pedal-gas" id="pedalGas" data-key="KeyW" aria-label="Gas pedal"><span>GAS</span></button>
   </div>
 </div>
 <div id="toast" class="toast" role="status" hidden></div>
 <aside id="boardPanel" class="board-panel" aria-label="Leaderboard" hidden>
   <div class="board-head"><h3>LEADERBOARD</h3><button class="mini" id="boardClose" aria-label="Close leaderboard">CLOSE</button></div>
+  <div id="boardSync" class="sync-bar"><span id="boardStatus">LOCAL LEADERBOARD</span><button type="button" id="boardRetry" class="mini" hidden>RETRY</button></div>
   <ol id="boardList" class="board-list"></ol>
 </aside>
 <main id="overlay" class="overlay">
@@ -285,7 +342,7 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
         <button class="drive" id="start">START DRIVE <span aria-hidden="true">↗</span></button>
         <button class="secondary" id="boardToggle" aria-expanded="false" aria-controls="boardPanel">LEADERBOARD</button>
       </div>
-      <div class="help desktop-help"><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer &nbsp; <kbd>Space</kbd> handbrake<br>Drag the mouse to look around &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>L</kbd> lock view &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>P</kbd> pause</div>
+      <div class="help desktop-help"><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake / hold reverse &nbsp; <kbd>A</kbd> <kbd>D</kbd> steer &nbsp; <kbd>R</kbd> reverse gear<br><kbd>F</kbd> refuel &nbsp; <kbd>V</kbd> scenic view &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>L</kbd> lock view &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>P</kbd> pause</div>
     </div>
   </div>
 
@@ -310,6 +367,7 @@ body:has(#startCard:not([hidden])) header{visibility:hidden}
       <div class="wide"><span class="label">START ZONE</span><b id="overZone">SUNSET COAST</b></div>
     </div>
     <span class="badge" id="overBadge" hidden>NEW PERSONAL BEST</span>
+    <div id="overSync" class="sync-bar" style="margin-top:10px"><span id="overStatus">SAVING SCORE...</span><button type="button" id="retrySubmit" class="mini" hidden>RETRY</button></div>
     <div class="field-label"><span>LEADERBOARD</span></div>
     <ol id="overBoard" class="board-list"></ol>
     <div class="btn-row">
