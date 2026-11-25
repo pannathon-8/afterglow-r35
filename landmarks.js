@@ -210,10 +210,220 @@ function roadLabel(group,z,left,height,width,lines,key) {
     [cx-sin*.01,cy-h*.52,s-cos*.01,width+.18,.075,.13,yaw]
   ],signTrimMat);
 }
+const stationApronMat = material(0x2d323a, .86, .06);
+const stationCanopyMat = material(0x1f2633, .45, .52);
+const stationStripeMat = new THREE.MeshStandardMaterial({ color: 0xffb870, emissive: 0xff8d3a, emissiveIntensity: 1.65, roughness: .28 });
+const pumpBodyMat = material(0xe2e6ee, .38, .22);
+const pumpScreenMat = new THREE.MeshStandardMaterial({ color: 0x7effc2, emissive: 0x26e58f, emissiveIntensity: 1.9, roughness: .22 });
+const timberDeckMat = material(0x6e4e38, .85, .04);
+const serviceSignCache = new Map();
+
+function serviceRoadSign(group, z, xOff, height, width, bg, accent, topLine, mainLine, key) {
+  if (!serviceSignCache.has(key)) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 640, 240);
+    ctx.strokeStyle = '#f5f1e4';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(10, 10, 620, 220);
+    ctx.fillStyle = accent;
+    ctx.fillRect(22, 22, 596, 62);
+    ctx.fillStyle = '#121821';
+    ctx.font = '900 34px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(topLine, 320, 65);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 54px Arial';
+    ctx.fillText(mainLine, 320, 168, 570);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    serviceSignCache.set(key, new THREE.MeshLambertMaterial({ map: tex }));
+  }
+  const s = z - group.userData.start;
+  const cx = center(z) + xOff;
+  const cy = grade(z) + height;
+  const yaw = yawAt(z);
+  const h = width * (240 / 640);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(width, h), serviceSignCache.get(key));
+  sign.rotation.y = Math.PI + yaw;
+  sign.position.set(cx, cy, s);
+  group.add(sign);
+  batch(group, boxGeo, [
+    [cx - .9, grade(z) + height * .5, s, .12, height, .12, yaw],
+    [cx + .9, grade(z) + height * .5, s, .12, height, .12, yaw],
+    [cx, cy, s + .06, width + .14, h + .14, .09, yaw]
+  ], lampSteel);
+}
+
+function addTaperedApron(group, site, start, stop) {
+  const z0 = Math.max(start, site.z - site.halfLen);
+  const z1 = Math.min(stop, site.z + site.halfLen);
+  if (z1 <= z0) return;
+  const steps = Math.max(4, Math.ceil((z1 - z0) / 4));
+  const p = [], faces = [];
+  for (let i = 0; i <= steps; i++) {
+    const z = mix(z0, z1, i / steps);
+    const dz = Math.abs(z - site.z);
+    const taper = 1 - smooth(site.halfLen - 28, site.halfLen, dz);
+    const innerX = center(z) - 6.35;
+    const outerX = center(z) - mix(7.2, site.apronWidth, taper);
+    const y = grade(z) + .012;
+    p.push(outerX, y, z - start, innerX, y, z - start);
+    if (i) faces.push(2 * i - 2, 2 * i, 2 * i - 1, 2 * i - 1, 2 * i, 2 * i + 1);
+  }
+  meshFrom(group, p, faces, stationApronMat);
+  // Retaining wall under outer apron edge so elevated slopes look anchored
+  const wp = [], wf = [];
+  for (let i = 0; i <= steps; i++) {
+    const z = mix(z0, z1, i / steps);
+    const dz = Math.abs(z - site.z);
+    const taper = 1 - smooth(site.halfLen - 28, site.halfLen, dz);
+    const outerX = center(z) - mix(7.2, site.apronWidth, taper);
+    const yTop = grade(z) + .01;
+    wp.push(outerX, yTop - 7, z - start, outerX, yTop, z - start);
+    if (i) wf.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+  }
+  meshFrom(group, wp, wf, rockMat);
+}
+
+function buildFuelStation(group, site, start, stop, lampPools, lights, lampHalos) {
+  addTaperedApron(group, site, start, stop);
+  const z = site.z;
+  if (z < start || z >= stop) return;
+  const s = z - start;
+  const cx = center(z);
+  const gy = grade(z);
+  const yaw = yawAt(z);
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  const put = (dx, dy, dz) => [cx + dx * cos + dz * sin, gy + dy, s - dx * sin + dz * cos];
+
+  const steel = [], canopy = [], stripe = [], pumps = [], screens = [], shopWalls = [], shopWin = [], lines = [], bollards = [];
+  // Painted parking bay outline (x = -11.3, length = 16m, width = 4.5m)
+  for (const lz of [-8.5, 8.5]) lines.push([...put(-11.3, .035, lz), 4.6, .016, .18, yaw]);
+  for (const lx of [-9.0, -13.6]) lines.push([...put(lx, .035, 0), .18, .016, 17.2, yaw]);
+  // Raised concrete pump island at x = -15.3
+  shopWalls.push([...put(-15.3, .14, 0), 1.9, .28, 18.5, yaw]);
+  // Canopy columns + modern cantilevered roof
+  for (const lz of [-8.0, 8.0]) steel.push([...put(-15.3, 2.65, lz), .46, 5.2, .46, yaw]);
+  canopy.push([...put(-13.8, 5.35, 0), 9.4, .58, 25.0, yaw]);
+  stripe.push([...put(-9.08, 5.35, 0), .12, .22, 25.1, yaw]);
+  stripe.push([...put(-13.8, 5.35, -12.52), 9.45, .22, .12, yaw]);
+  stripe.push([...put(-13.8, 5.35, 12.52), 9.45, .22, .12, yaw]);
+  // Canopy underside downlights + warm glow pools on pump bay
+  for (const lz of [-8.0, 0, 8.0]) {
+    lights.push([...put(-12.2, 5.03, lz), 1.6, .06, .75, yaw]);
+    lampHalos.push([...put(-12.2, 4.95, lz), 3.6, 1, 3.6, yaw]);
+    lampPools.push([...put(-11.4, .034, lz), 7.8, 1, 8.4, yaw]);
+  }
+  // 2 Fuel dispensers on island
+  for (const lz of [-4.2, 4.2]) {
+    pumps.push([...put(-15.1, 1.12, lz), 1.05, 1.85, .86, yaw]);
+    stripe.push([...put(-15.1, 2.08, lz), 1.12, .18, .92, yaw]);
+    screens.push([...put(-14.55, 1.38, lz), .06, .46, .58, yaw]);
+  }
+  // Small glowing dusk service shop / cafe behind pump island
+  shopWalls.push([...put(-18.6, 1.9, 0), 3.2, 3.8, 14.5, yaw]);
+  canopy.push([...put(-18.5, 3.92, 0), 3.8, .32, 15.2, yaw]);
+  stripe.push([...put(-16.6, 3.92, 0), .1, .16, 15.25, yaw]);
+  for (const lz of [-4.4, 0, 4.4]) {
+    shopWin.push([...put(-16.96, 1.75, lz), .1, 1.9, 3.4, yaw]);
+  }
+  // Protective safety bollards along back curb
+  for (let lz = -16; lz <= 16; lz += 4) {
+    bollards.push([...put(-19.5, .48, lz), .18, .96, .18, yaw]);
+  }
+  // Illuminated canopy fascia sign facing oncoming drivers
+  serviceRoadSign(group, z - 12.6, -13.5, 5.4, 6.2, '#131d2c', '#ff9e42', '24H SERVICE STATION', 'AFTERGLOW FUEL', 'canopy-fuel');
+
+  batch(group, boxGeo, lines, goldLine);
+  batch(group, boxGeo, steel, lampSteel);
+  batch(group, boxGeo, canopy, stationCanopyMat);
+  batch(group, boxGeo, stripe, stationStripeMat);
+  batch(group, boxGeo, pumps, pumpBodyMat);
+  batch(group, boxGeo, screens, pumpScreenMat);
+  batch(group, boxGeo, shopWalls, ivory);
+  batch(group, boxGeo, shopWin, villaLit);
+  batch(group, boxGeo, bollards, posts);
+}
+
+function buildOverlook(group, site, start, stop, lampPools, lights, lampHalos) {
+  addTaperedApron(group, site, start, stop);
+  const z = site.z;
+  if (z < start || z >= stop) return;
+  const s = z - start;
+  const cx = center(z);
+  const gy = grade(z);
+  const yaw = yawAt(z);
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  const put = (dx, dy, dz) => [cx + dx * cos + dz * sin, gy + dy, s - dx * sin + dz * cos];
+
+  const deck = [], rails = [], postsArr = [], lines = [];
+  // Painted parking bay for scenic stop (x = -11.0)
+  for (const lz of [-7.5, 7.5]) lines.push([...put(-11.0, .035, lz), 4.4, .016, .18, yaw]);
+  for (const lx of [-8.8, -13.2]) lines.push([...put(lx, .035, 0), .18, .016, 15.2, yaw]);
+  // Raised timber viewing deck along cliff edge (x = -15.4)
+  deck.push([...put(-15.5, .14, 0), 2.8, .28, 28.0, yaw]);
+  // Timber safety railing along outer vista edge
+  rails.push([...put(-16.7, 1.08, 0), .14, .12, 28.0, yaw]);
+  rails.push([...put(-16.7, .64, 0), .11, .09, 28.0, yaw]);
+  for (let lz = -13; lz <= 13; lz += 3.25) {
+    postsArr.push([...put(-16.7, .62, lz), .15, 1.1, .15, yaw]);
+  }
+  // Wooden viewing benches + warm bollard lights along terrace
+  for (const lz of [-5.5, 5.5]) {
+    deck.push([...put(-15.1, .56, lz), .65, .12, 2.6, yaw]);
+    postsArr.push([...put(-15.1, .35, lz - 1.0), .45, .36, .16, yaw]);
+    postsArr.push([...put(-15.1, .35, lz + 1.0), .45, .36, .16, yaw]);
+  }
+  for (const lz of [-11, -3.5, 3.5, 11]) {
+    postsArr.push([...put(-14.2, .48, lz), .18, .92, .18, yaw]);
+    lights.push([...put(-14.2, .96, lz), .22, .14, .22, yaw]);
+    lampHalos.push([...put(-14.2, 1.0, lz), 1.6, 1, 1.6, yaw]);
+    lampPools.push([...put(-12.6, .034, lz), 5.2, 1, 5.6, yaw]);
+  }
+  // Scenic signpost
+  serviceRoadSign(group, z - 14.5, -14.8, 3.0, 4.4, '#2d2119', '#ffbe6b', 'SCENIC OVERLOOK', site.name, `ov-${site.id}`);
+
+  batch(group, boxGeo, lines, whiteLine);
+  batch(group, boxGeo, deck, timberDeckMat);
+  batch(group, boxGeo, rails, timberDeckMat);
+  batch(group, boxGeo, postsArr, posts);
+}
+
 function roadside(group,start,stop,id) {
   const poles=[],lights=[],lampPools=[],lampCones=[],lampHalos=[],viaductMarkers=[],beacons=[],beaconHalos=[],concrete=[],crowns=[],wood=[],iron=[],wires=[];
   if(id>=0 && id<24 && id%13===1)coastalStation(group,start+46);
   if(id>=0 && id<36 && (id%10===0||id%10===1))hillsideVillas(group,start,id);
+
+  // Render gas stations, scenic overlooks, and advance exit signs inside this chunk
+  const nearbySites = getRoadsideSites(start - 100, stop + 340);
+  for (const site of nearbySites) {
+    if (site.type === 'fuel') {
+      buildFuelStation(group, site, start, stop, lampPools, lights, lampHalos);
+      const signFar = site.z - 300;
+      const signNear = site.z - 115;
+      if (signFar >= start && signFar < stop) {
+        serviceRoadSign(group, signFar, -9.8, 3.2, 4.4, '#113a66', '#ffac4a', 'FUEL STATION · 300M', 'EXIT RIGHT ↗', 'sign-fuel-300');
+      }
+      if (signNear >= start && signNear < stop) {
+        serviceRoadSign(group, signNear, -9.6, 3.1, 4.4, '#113a66', '#ffac4a', 'NEXT EXIT · 100M', 'FUEL BAY ↗', 'sign-fuel-100');
+      }
+    } else {
+      buildOverlook(group, site, start, stop, lampPools, lights, lampHalos);
+      const signFar = site.z - 250;
+      const signNear = site.z - 95;
+      if (signFar >= start && signFar < stop) {
+        serviceRoadSign(group, signFar, -9.8, 3.1, 4.4, '#3a291e', '#ffbe6b', 'SCENIC OVERLOOK · 250M', 'VIEWPOINT ↗', 'sign-ov-250');
+      }
+      if (signNear >= start && signNear < stop) {
+        serviceRoadSign(group, signNear, -9.6, 3.0, 4.4, '#3a291e', '#ffbe6b', 'PULL OUT RIGHT', 'SCENIC BAY ↗', 'sign-ov-100');
+      }
+    }
+  }
+
   const local=(z,x,y)=>vector(center(z)+x,grade(z)+y,z-start);
   function beam(list,a,b,r,depth=r){
     const mid=a.clone().lerp(b,.5),delta=b.clone().sub(a);
@@ -228,6 +438,7 @@ function roadside(group,start,stop,id) {
   }
   for(let z=start+24;z<stop;z+=40){
     const side=(Math.floor(z/40)%2===0)?-1:1;
+    if (side === -1 && roadsideSiteAt(z, 6)) continue;
     const yaw=yawAt(z);
     const a=local(z,side*7.95,0), b=local(z,side*7.95,6.6);
     const c=local(z,side*6.0,7.12);
@@ -308,6 +519,7 @@ function roadside(group,start,stop,id) {
       const z=cz+rand(seed*5+i+.42)*5;
       const x=cx+rand(seed*5+i+.71)*3;
       if(Math.abs(x)<8.3)continue;
+      if(x<-5.8&&x>-32&&roadsideSiteAt(z,14))continue;
       const y=surfaceHeight(x,z);
       if(y<-12.8||bridgeStartAt(z)&&z%10000<640&&Math.abs(x)<100)continue;
       const h=.8+rand(seed*5+i+.51)*2.4;

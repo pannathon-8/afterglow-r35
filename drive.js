@@ -4,10 +4,13 @@ const ui = Object.fromEntries([
   'pauseTitle', 'pauseText', 'start', 'resume', 'restart', 'garagePause', 'again', 'garageOver',
   'view', 'cam', 'camLock', 'sound', 'pause', 'roadName', 'speed', 'gear', 'rpm', 'rpmBars', 'speedArc',
   'ticks', 'distance', 'best', 'toast', 'hearts', 'flash', 'steerPad', 'wheelSvg', 'pedalGas',
-  'pedalBrake', 'driverForm', 'driverName', 'saveName', 'nameHint', 'driverView', 'driverInitial',
+  'pedalBrake', 'gearToggle', 'fuelWrap', 'fuelBar', 'fuelPct', 'spotHint', 'spotBar', 'spotTitle',
+  'spotSub', 'spotAction', 'spotAlt', 'scenicBar', 'scenicTitle', 'scenicSub', 'scenicExit',
+  'driverForm', 'driverName', 'saveName', 'nameHint', 'driverView', 'driverInitial',
   'driverTitle', 'driverBest', 'driverRuns', 'changeName', 'swatches', 'paintName', 'zones',
-  'boardToggle', 'boardPanel', 'boardList', 'boardClose', 'overDriver', 'overDistance', 'overBest',
-  'overZone', 'overBadge', 'overBoard'
+  'boardToggle', 'boardPanel', 'boardSync', 'boardStatus', 'boardRetry', 'boardList', 'boardClose',
+  'overDriver', 'overDistance', 'overBest', 'overZone', 'overBadge', 'overSync', 'overStatus',
+  'retrySubmit', 'overBoard'
 ].map(id => [id, element(id)]));
 const r35 = makeR35();
 const traffic = Array.from({ length: 12 }, (_, i) => makeTraffic(i));
@@ -16,10 +19,12 @@ const touchKeys = new Map();
 const steerPointers = new Map();
 const driverKey = 'afterglow-r35-driver-v1';
 const boardKey = 'afterglow-r35-leaderboard-v1';
+const runsKey = 'afterglow-r35-submitted-runs-v2';
 const paintKey = 'afterglow-r35-paint-v1';
 const zoneKey = 'afterglow-r35-zone-v1';
 const maxHearts = 3;
 const maxSpeed = 86.1;
+const maxReverseSpeed = 11.2;
 const coastLabel = 'SUNSET COAST';
 const valleyLabel = 'PINE VALLEY';
 const viaductLabel = 'SKYLINE VIADUCT';
@@ -58,7 +63,7 @@ function roadSurfaceY(z) {
   return mix(grade(z0), grade(z0 + 8), (z - z0) / 8) + 0.008;
 }
 
-/* ---------- Persistence ---------- */
+/* ---------- Persistence & Leaderboard Engine ---------- */
 const memoryStore = new Map();
 const store = {
   get(key) {
@@ -67,30 +72,138 @@ const store = {
   },
   set(key, value) {
     memoryStore.set(key, value);
-    try { localStorage.setItem(key, value); } catch {}
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      console.error('Storage write failed:', key, error);
+      return false;
+    }
   }
 };
 const sanitizeName = value => String(value ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '')
   .replace(/\s+/g, ' ').trim().slice(0, 14);
+const makeRunId = () => (typeof crypto !== 'undefined' && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+function normalizeBoard(list) {
+  if (!Array.isArray(list)) return [];
+  const byKey = new Map();
+  for (const entry of list) {
+    if (!entry || typeof entry.name !== 'string') continue;
+    const name = sanitizeName(entry.name);
+    const best = Math.max(0, Math.round(Number(entry.best)));
+    if (!name || !Number.isFinite(best)) continue;
+    const key = name.toLowerCase();
+    const runs = Math.max(0, Math.floor(Number(entry.runs) || 0));
+    const zoneLabel = String(entry.zone || '').slice(0, 24);
+    const color = /^#[0-9a-f]{6}$/i.test(entry.color) ? entry.color : '#8a93a0';
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { name, best, zone: zoneLabel, color, runs });
+    } else {
+      if (best > existing.best) {
+        existing.best = best;
+        existing.zone = zoneLabel || existing.zone;
+        existing.color = color;
+      }
+      existing.name = name;
+      existing.runs = Math.max(existing.runs, runs);
+    }
+  }
+  return [...byKey.values()].sort((a, b) => b.best - a.best || b.runs - a.runs || a.name.localeCompare(b.name));
+}
 
 function readBoard() {
   try {
-    const data = JSON.parse(store.get(boardKey) || '[]');
-    if (!Array.isArray(data)) return [];
-    return data.filter(entry => entry && typeof entry.name === 'string' && Number.isFinite(Number(entry.best)))
-      .map(entry => ({
-        name: sanitizeName(entry.name),
-        best: Math.max(0, Number(entry.best)),
-        zone: String(entry.zone || '').slice(0, 24),
-        color: /^#[0-9a-f]{6}$/i.test(entry.color) ? entry.color : '#8a93a0',
-        runs: Math.max(0, Math.floor(Number(entry.runs) || 0))
-      })).filter(entry => entry.name);
+    return normalizeBoard(JSON.parse(store.get(boardKey) || '[]'));
+  } catch (error) {
+    console.error('Failed to parse leaderboard data:', error);
+    return [];
+  }
+}
+const writeBoard = list => store.set(boardKey, JSON.stringify(normalizeBoard(list)));
+const sortedBoard = () => readBoard();
+
+function readSubmittedRuns() {
+  try {
+    const arr = JSON.parse(store.get(runsKey) || '[]');
+    return Array.isArray(arr) ? arr.filter(x => typeof x === 'string') : [];
   } catch {
     return [];
   }
 }
-const writeBoard = list => store.set(boardKey, JSON.stringify(list));
-const sortedBoard = () => readBoard().sort((a, b) => b.best - a.best || b.runs - a.runs || a.name.localeCompare(b.name));
+function markRunSubmitted(id) {
+  if (!id) return true;
+  const arr = readSubmittedRuns();
+  if (!arr.includes(id)) arr.push(id);
+  if (arr.length > 250) arr.splice(0, arr.length - 250);
+  return store.set(runsKey, JSON.stringify(arr));
+}
+function isRunSubmitted(id) {
+  return Boolean(id && readSubmittedRuns().includes(id));
+}
+
+let cloudMode = 'unknown'; // 'unknown' | 'cloud' | 'local-only' | 'error'
+let pendingSubmit = null;
+let submittingScore = false;
+
+function setSyncBar(barEl, textEl, btnEl, tone, text, showRetry = false) {
+  if (!barEl || !textEl) return;
+  barEl.classList.remove('ok', 'warn', 'err');
+  if (tone) barEl.classList.add(tone);
+  textEl.textContent = text;
+  if (btnEl) btnEl.hidden = !showRetry;
+}
+
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function refreshCloudBoard(showLoading = true) {
+  if (!location.protocol.startsWith('http')) {
+    cloudMode = 'local-only';
+    setSyncBar(ui.boardSync, ui.boardStatus, ui.boardRetry, 'warn', 'LOCAL LEADERBOARD (OFFLINE FILE)', false);
+    renderBoard(ui.boardList, 50);
+    return;
+  }
+  if (showLoading) setSyncBar(ui.boardSync, ui.boardStatus, ui.boardRetry, '', 'LOADING LEADERBOARD...', false);
+  try {
+    const res = await fetchJsonWithTimeout('/api/leaderboard', { method: 'GET' });
+    if (res.ok && res.data?.ok && Array.isArray(res.data.entries)) {
+      cloudMode = 'cloud';
+      const merged = normalizeBoard([...readBoard(), ...res.data.entries]);
+      writeBoard(merged);
+      loadPersonal();
+      refreshDriverUI();
+      setSyncBar(ui.boardSync, ui.boardStatus, ui.boardRetry, 'ok', 'GLOBAL LEADERBOARD · SYNCED', false);
+      renderBoard(ui.boardList, 50);
+      if (state === 'crashed') renderBoard(ui.overBoard, 8);
+      return;
+    }
+    if (res.status === 503 || res.data?.code === 'CLOUD_NOT_CONFIGURED') {
+      cloudMode = 'local-only';
+      setSyncBar(ui.boardSync, ui.boardStatus, ui.boardRetry, 'warn', 'SAVED ON THIS DEVICE · CLOUD DB NOT LINKED', true);
+      renderBoard(ui.boardList, 50);
+      return;
+    }
+    throw new Error(res.data?.error || `HTTP ${res.status}`);
+  } catch (error) {
+    cloudMode = 'error';
+    console.error('Leaderboard load failed:', error);
+    setSyncBar(ui.boardSync, ui.boardStatus, ui.boardRetry, 'err', 'CLOUD LOAD FAILED · SHOWING LOCAL SCORES', true);
+    renderBoard(ui.boardList, 50);
+  }
+}
 
 /* ---------- Game state ---------- */
 let driverName = sanitizeName(store.get(driverKey));
@@ -98,14 +211,17 @@ let paint = paints.find(item => item.id === store.get(paintKey)) || paints[0];
 let zone = zones.find(item => item.id === store.get(zoneKey)) || zones[0];
 let editingName = false;
 let personalBest = 0;
+let runId = '';
 let runActive = false;
 let runCounted = false;
 let runZone = zone;
+let runStartZ = zone.startZ;
 let runPaint = paint.hex;
 let runStartBest = 0;
 let lastSavedTrip = 0;
 let state = 'ready';
 let worldZ = zone.startZ;
+let maxWorldZ = zone.startZ;
 let tripDistance = 0;
 let speedMS = 0;
 let lateral = 0;
@@ -113,6 +229,22 @@ let offset = 0;
 let wheelsAngle = 0;
 let revs = 900;
 let gearIndex = 0;
+let reverseGear = false;
+let autoReversing = false;
+let brakeHoldZero = 0;
+let fuel = 100;
+let refueling = false;
+let lowFuelWarned = false;
+let critFuelWarned = false;
+let outOfFuelWarned = false;
+let scenicMode = false;
+let scenicSite = null;
+let scenicPrevCam = 0;
+let scenicPrevLocked = false;
+let scenicOrbit = 0;
+let scenicTilt = 0;
+let activeSpot = null;
+let spotBarKey = '';
 let hearts = maxHearts;
 let crashInvuln = 0;
 let shake = 0;
@@ -264,7 +396,10 @@ function toggleBoard(force) {
   const show = force ?? ui.boardPanel.hidden;
   ui.boardPanel.hidden = !show;
   ui.boardToggle.setAttribute('aria-expanded', String(show));
-  if (show) renderBoard(ui.boardList, 50);
+  if (show) {
+    renderBoard(ui.boardList, 50);
+    refreshCloudBoard(true);
+  }
 }
 
 function selectPaint(id, persist = true) {
@@ -277,6 +412,8 @@ function selectPaint(id, persist = true) {
 
 function previewZone() {
   worldZ = zone.startZ;
+  maxWorldZ = zone.startZ;
+  runStartZ = zone.startZ;
   tripDistance = 0;
   speedMS = offset = lateral = 0;
   seedTraffic();
@@ -303,30 +440,102 @@ for (const item of paints) {
   ui.swatches.append(swatch);
 }
 
-/* ---------- Score saving ---------- */
-function saveScore(final = false) {
-  if (!driverName || !runActive || tripDistance < 5) return;
-  lastSavedTrip = tripDistance;
+/* ---------- Score saving & cloud submission ---------- */
+function saveScoreLocal(payload, countRun = false) {
+  const name = sanitizeName(payload.name);
+  if (!name) return { ok: false, error: 'Driver name missing' };
+  const metres = Math.max(0, Math.round(Number(payload.distance) || 0));
   const board = readBoard();
-  const key = driverName.toLowerCase();
+  const key = name.toLowerCase();
   let entry = board.find(item => item.name.toLowerCase() === key);
+  const alreadyCounted = Boolean(payload.runId && isRunSubmitted(payload.runId));
   if (!entry) {
-    entry = { name: driverName, best: 0, zone: '', color: runPaint, runs: 0 };
+    entry = { name, best: metres, zone: payload.zone, color: payload.color, runs: countRun ? 1 : 0 };
     board.push(entry);
+  } else {
+    entry.name = name;
+    if (metres > entry.best) {
+      entry.best = metres;
+      entry.zone = payload.zone;
+      entry.color = payload.color;
+    }
+    if (countRun && !alreadyCounted && !runCounted) {
+      entry.runs = Math.max(0, entry.runs) + 1;
+    }
   }
-  entry.name = driverName;
-  const metres = Math.round(tripDistance);
-  if (metres > entry.best) {
-    entry.best = metres;
-    entry.zone = runZone.label;
-    entry.color = runPaint;
-  }
-  if (final && !runCounted) {
-    entry.runs += 1;
+  if (countRun) {
     runCounted = true;
+    markRunSubmitted(payload.runId);
   }
-  writeBoard(board);
+  const ok = writeBoard(board);
   personalBest = entry.best;
+  return { ok, entry };
+}
+
+function saveScore(final = false) {
+  if (!driverName || !runActive) return { ok: true };
+  if (!final && tripDistance < 5) return { ok: true };
+  lastSavedTrip = tripDistance;
+  return saveScoreLocal({
+    runId,
+    name: driverName,
+    distance: tripDistance,
+    zone: runZone.label,
+    color: runPaint
+  }, final);
+}
+
+async function submitPendingScore() {
+  if (!pendingSubmit || submittingScore) return;
+  submittingScore = true;
+  const payload = pendingSubmit;
+  setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, '', 'SUBMITTING SCORE...', false);
+
+  const localRes = saveScoreLocal(payload, true);
+  renderBoard(ui.overBoard, 8);
+  ui.overBest.textContent = km(Math.max(personalBest, payload.distance));
+
+  if (!localRes.ok) {
+    setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, 'err', 'LOCAL STORAGE BLOCKED · TAP RETRY', true);
+    submittingScore = false;
+    return;
+  }
+
+  if (!location.protocol.startsWith('http')) {
+    setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, 'ok', 'SAVED ON THIS DEVICE', false);
+    pendingSubmit = null;
+    submittingScore = false;
+    return;
+  }
+
+  try {
+    const res = await fetchJsonWithTimeout('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok && res.data?.ok && Array.isArray(res.data.entries)) {
+      cloudMode = 'cloud';
+      const merged = normalizeBoard([...readBoard(), ...res.data.entries]);
+      writeBoard(merged);
+      loadPersonal();
+      renderBoard(ui.overBoard, 8);
+      ui.overBest.textContent = km(Math.max(personalBest, payload.distance));
+      setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, 'ok', 'SAVED TO GLOBAL LEADERBOARD', false);
+      pendingSubmit = null;
+    } else if (res.status === 503 || res.data?.code === 'CLOUD_NOT_CONFIGURED') {
+      cloudMode = 'local-only';
+      setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, 'warn', 'SAVED ON THIS DEVICE · CLOUD DB NOT LINKED', true);
+    } else {
+      throw new Error(res.data?.error || `HTTP ${res.status}`);
+    }
+  } catch (error) {
+    cloudMode = 'error';
+    console.error('Score submit failed:', error);
+    setSyncBar(ui.overSync, ui.overStatus, ui.retrySubmit, 'err', 'SYNC FAILED · SAVED LOCALLY — TAP RETRY', true);
+  } finally {
+    submittingScore = false;
+  }
 }
 
 function notice(text, seconds = 1.8) {
@@ -449,7 +658,7 @@ function moveTraffic(dt, previousZ, previousOffset) {
       Math.abs(car.lane - offset) < contactWidth;
     let leader = leaders.get(car.lane);
     if (behindPlayer && playerBlocksLane && (!leader || previousZ < leader.previousZ)) {
-      leader = { previousZ, z: worldZ, speed: speedMS };
+      leader = { previousZ, z: worldZ, speed: Math.max(0, speedMS) };
     }
 
     let targetSpeed = car.cruise ?? car.speed;
@@ -568,9 +777,189 @@ function menu(next) {
   }
 }
 
+function refreshGearToggle() {
+  if (!ui.gearToggle) return;
+  ui.gearToggle.textContent = reverseGear ? 'GEAR R' : 'GEAR D';
+  ui.gearToggle.setAttribute('aria-pressed', String(reverseGear));
+}
+
+function toggleReverseGear() {
+  if (state !== 'playing' || scenicMode || refueling) return;
+  if (Math.abs(speedMS) > 2.2) {
+    notice('STOP TO SHIFT INTO REVERSE', 1.6);
+    return;
+  }
+  reverseGear = !reverseGear;
+  autoReversing = false;
+  brakeHoldZero = 0;
+  refreshGearToggle();
+  notice(reverseGear ? 'REVERSE GEAR (R)' : 'DRIVE GEAR (D)', 1.5);
+}
+
+function enterScenicMode(site) {
+  if (!site || scenicMode || state !== 'playing') return;
+  clearInput();
+  speedMS = lateral = 0;
+  scenicMode = true;
+  scenicSite = site;
+  scenicPrevCam = camIndex;
+  scenicPrevLocked = cameraLocked;
+  scenicOrbit = 0;
+  scenicTilt = 0;
+  snapCamera = true;
+  document.body.classList.add('scenic-active');
+  ui.scenicTitle.textContent = site.name;
+  ui.scenicSub.textContent = `${site.subtitle || 'Scenic Overlook'} · Drag to pan`;
+  ui.scenicBar.hidden = false;
+  ui.spotBar.hidden = true;
+  ui.spotHint.hidden = true;
+}
+
+function exitScenicMode() {
+  if (!scenicMode) return;
+  scenicMode = false;
+  scenicSite = null;
+  camIndex = scenicPrevCam;
+  cameraLocked = scenicPrevLocked;
+  orbit = tilt = 0;
+  snapCamera = true;
+  document.body.classList.remove('scenic-active');
+  ui.scenicBar.hidden = true;
+  refreshCameraUI();
+  notice('DRIVING VIEW RESTORED', 1.4);
+}
+
+function startRefuel() {
+  if (state !== 'playing' || scenicMode) return;
+  if (!activeSpot || activeSpot.type !== 'fuel') return;
+  if (fuel >= 99.5) {
+    notice('TANK ALREADY FULL', 1.5);
+    return;
+  }
+  refueling = true;
+  speedMS = lateral = 0;
+  reverseGear = false;
+  autoReversing = false;
+  refreshGearToggle();
+  notice('REFUELING...', 1.6);
+}
+
+function recoverToFuelStation() {
+  if (state !== 'playing') return;
+  const station = lastFuelStationBefore(worldZ);
+  clearInput();
+  speedMS = lateral = 0;
+  reverseGear = false;
+  autoReversing = false;
+  refueling = false;
+  worldZ = station.z;
+  offset = -11.0;
+  fuel = Math.max(fuel, 60);
+  lowFuelWarned = false;
+  critFuelWarned = false;
+  outOfFuelWarned = false;
+  snapCamera = true;
+  seedTraffic();
+  refreshGearToggle();
+  // Note: maxWorldZ is NOT changed, so re-driving this stretch never adds score.
+  notice(`TOWED TO ${station.name} · 60% FUEL`, 2.8);
+}
+
+function updateSpotBar() {
+  if (state !== 'playing' || scenicMode) {
+    ui.spotBar.hidden = true;
+    ui.spotHint.hidden = true;
+    spotBarKey = '';
+    return;
+  }
+
+  // Upcoming sign pill within 320m ahead
+  const upcoming = nextRoadsideSite(worldZ, null, 330);
+  if (upcoming && upcoming.z - worldZ > 32) {
+    const distM = Math.round((upcoming.z - worldZ) / 10) * 10;
+    const tag = upcoming.type === 'fuel' ? 'FUEL STATION' : upcoming.name;
+    ui.spotHint.textContent = `${tag} · ${distM}M · PULL RIGHT ↗`;
+    ui.spotHint.hidden = false;
+  } else {
+    ui.spotHint.hidden = true;
+  }
+
+  const site = roadsideSiteAt(worldZ, 0);
+  const inBay = Boolean(site && Math.abs(worldZ - site.z) <= site.bayHalfLen && offset <= -7.3);
+  activeSpot = inBay ? site : null;
+  const slowEnough = Math.abs(speedMS) < 2.4;
+
+  // Priority 1: Refueling or stopped in Fuel Bay
+  if (inBay && site.type === 'fuel' && (slowEnough || refueling)) {
+    const pct = Math.round(fuel);
+    const key = refueling ? `refuel-${pct}` : (pct >= 100 ? `full-${site.uid}` : `pump-${site.uid}-${pct}`);
+    if (spotBarKey !== key) {
+      spotBarKey = key;
+      ui.spotTitle.textContent = `${site.name} · PUMP BAY`;
+      ui.spotSub.textContent = refueling
+        ? `Filling tank... ${pct}%`
+        : (pct >= 100 ? 'Tank is full. Pull back onto the highway when ready.' : `Fuel at ${pct}%. Stop here to refuel.`);
+      ui.spotAction.textContent = refueling ? `REFUELING ${pct}%` : (pct >= 100 ? 'TANK FULL' : 'REFUEL (F)');
+      ui.spotAction.disabled = refueling || pct >= 100;
+      ui.spotAction.dataset.mode = 'refuel';
+      ui.spotAlt.hidden = true;
+      ui.spotBar.hidden = false;
+    }
+    return;
+  }
+
+  // Priority 2: Stopped in Scenic Overlook Bay
+  if (inBay && site.type === 'overlook' && slowEnough) {
+    const key = `overlook-${site.uid}`;
+    if (spotBarKey !== key) {
+      spotBarKey = key;
+      ui.spotTitle.textContent = site.name;
+      ui.spotSub.textContent = `${site.subtitle || 'Scenic Overlook'} · Switch to scenic camera`;
+      ui.spotAction.textContent = 'SCENIC VIEW (V)';
+      ui.spotAction.disabled = false;
+      ui.spotAction.dataset.mode = 'scenic';
+      ui.spotAlt.hidden = true;
+      ui.spotBar.hidden = false;
+    }
+    return;
+  }
+
+  // Priority 3: Stranded out of fuel outside a pump bay
+  if (fuel <= 0 && Math.abs(speedMS) < .45) {
+    const key = 'stranded';
+    if (spotBarKey !== key) {
+      spotBarKey = key;
+      const station = lastFuelStationBefore(worldZ);
+      ui.spotTitle.textContent = 'OUT OF FUEL';
+      ui.spotSub.textContent = `Tow back to ${station.name} (60% fuel, repeat distance won't add score) or end run.`;
+      ui.spotAction.textContent = 'TOW TO FUEL STATION';
+      ui.spotAction.disabled = false;
+      ui.spotAction.dataset.mode = 'tow';
+      ui.spotAlt.textContent = 'END RUN & SAVE';
+      ui.spotAlt.hidden = false;
+      ui.spotBar.hidden = false;
+    }
+    return;
+  }
+
+  ui.spotBar.hidden = true;
+  spotBarKey = '';
+}
+
 function resetDynamics() {
+  exitScenicMode();
   speedMS = offset = lateral = wheelsAngle = 0;
   gearIndex = 0;
+  reverseGear = false;
+  autoReversing = false;
+  brakeHoldZero = 0;
+  fuel = 100;
+  refueling = false;
+  lowFuelWarned = critFuelWarned = outOfFuelWarned = false;
+  activeSpot = null;
+  spotBarKey = '';
+  ui.spotBar.hidden = true;
+  ui.spotHint.hidden = true;
   revs = 900;
   orbit = tilt = 0;
   gasAmt = brakeAmt = 0;
@@ -580,6 +969,7 @@ function resetDynamics() {
   hearts = maxHearts;
   lastEdgeNotice = -Infinity;
   renderHearts();
+  refreshGearToggle();
 }
 
 function restartDrive() {
@@ -588,9 +978,13 @@ function restartDrive() {
     return;
   }
   wakeAudio();
-  saveScore(true);
+  if (runActive && tripDistance >= 5) saveScore(true);
   resetDynamics();
+  runId = makeRunId();
+  pendingSubmit = null;
   worldZ = zone.startZ;
+  runStartZ = zone.startZ;
+  maxWorldZ = zone.startZ;
   tripDistance = 0;
   loadPersonal();
   runZone = zone;
@@ -621,10 +1015,14 @@ function attemptStart() {
 }
 
 function pauseDrive() {
+  if (scenicMode) {
+    exitScenicMode();
+    return;
+  }
   if (state === 'playing') {
     saveScore(false);
     ui.pauseTitle.textContent = 'PAUSED';
-    ui.pauseText.textContent = `${driverName.toUpperCase()} · DISTANCE ${km(tripDistance)} KM · BEST ${km(Math.max(personalBest, tripDistance))} KM`;
+    ui.pauseText.textContent = `${driverName.toUpperCase()} · DISTANCE ${km(tripDistance)} KM · FUEL ${Math.round(fuel)}% · BEST ${km(Math.max(personalBest, tripDistance))} KM`;
     menu('paused');
   } else if (state === 'paused') {
     wakeAudio();
@@ -633,22 +1031,34 @@ function pauseDrive() {
 }
 
 function endRun() {
+  exitScenicMode();
   speedMS = lateral = 0;
   gearIndex = 0;
+  reverseGear = false;
+  autoReversing = false;
+  refueling = false;
   revs = 900;
-  saveScore(true);
+  const finalTrip = tripDistance;
+  const payload = {
+    runId: runId || makeRunId(),
+    name: driverName,
+    distance: Math.round(finalTrip),
+    zone: runZone.label,
+    color: runPaint
+  };
   runActive = false;
+  pendingSubmit = payload;
   ui.overDriver.textContent = `DRIVER · ${driverName.toUpperCase()}`;
-  ui.overDistance.textContent = km(tripDistance);
-  ui.overBest.textContent = km(Math.max(personalBest, tripDistance));
+  ui.overDistance.textContent = km(finalTrip);
+  ui.overBest.textContent = km(Math.max(personalBest, finalTrip));
   ui.overZone.textContent = runZone.label;
-  ui.overBadge.hidden = !(tripDistance >= 5 && Math.round(tripDistance) > runStartBest);
-  renderBoard(ui.overBoard, 5);
+  ui.overBadge.hidden = !(Math.round(finalTrip) > runStartBest && finalTrip >= 1);
   menu('crashed');
+  submitPendingScore();
 }
 
 function goGarage() {
-  saveScore(true);
+  if (runActive && tripDistance >= 5) saveScore(true);
   runActive = false;
   resetDynamics();
   previewZone();
@@ -701,36 +1111,168 @@ function pedal(value, key, touch, up, down, dt) {
 function updateDriving(dt, now) {
   impactCooldown = Math.max(0, impactCooldown - dt);
   crashInvuln = Math.max(0, crashInvuln - dt);
+
+  if (scenicMode) {
+    speedMS = 0;
+    lateral = 0;
+    gasAmt = brakeAmt = 0;
+    throttle = braking = false;
+    revs = damp(revs, 850, 8, dt);
+    for (const car of moveTraffic(dt, worldZ, offset)) {
+      const gap = car.z - worldZ;
+      if (gap < -120 || gap > 1510) car.z = Infinity;
+    }
+    refillTraffic();
+    return;
+  }
+
   const key = code => held.has(code);
   const touching = code => { for (const touch of touchKeys.values()) if (touch.key === code) return true; return false; };
+  const rawGas = key('KeyW') || key('ArrowUp') || touching('KeyW');
+  const rawBrakePedal = key('KeyS') || key('ArrowDown') || touching('KeyS');
+  const handbrake = key('Space');
   gasAmt = pedal(gasAmt, key('KeyW') || key('ArrowUp'), touching('KeyW'), 7, 14, dt);
-  brakeAmt = pedal(brakeAmt, key('KeyS') || key('ArrowDown') || key('Space'), touching('KeyS'), 9, 18, dt);
-  throttle = gasAmt > .08;
-  braking = brakeAmt > .08;
+  brakeAmt = pedal(brakeAmt, key('KeyS') || key('ArrowDown') || handbrake, touching('KeyS'), 9, 18, dt);
   const keySteer = Number(key('KeyD') || key('ArrowRight')) - Number(key('KeyA') || key('ArrowLeft'));
   touchSteer = damp(touchSteer, touchSteerTarget, 15, dt);
   if (Math.abs(touchSteer) < .003 && !touchSteerTarget) touchSteer = 0;
   steerInput = keySteer || touchSteer;
-  const steer = -steerInput; // lateral +x is the driver's left
 
+  // Handle active refueling at pump bay
+  if (refueling) {
+    speedMS = damp(speedMS, 0, 14, dt);
+    lateral = damp(lateral, 0, 14, dt);
+    throttle = braking = false;
+    revs = damp(revs, 900, 8, dt);
+    fuel = Math.min(100, fuel + 40 * dt);
+    if (fuel >= 100) {
+      fuel = 100;
+      refueling = false;
+      lowFuelWarned = critFuelWarned = outOfFuelWarned = false;
+      notice('TANK FULL · 100%', 2.2);
+    }
+    for (const car of moveTraffic(dt, worldZ, offset)) {
+      const gap = car.z - worldZ;
+      if (gap < -120 || gap > 1510) car.z = Infinity;
+    }
+    refillTraffic();
+    return;
+  }
+
+  const hasFuel = fuel > 0;
   const speedBefore = speedMS;
-  const acceleration = 9.9 * gasAmt * (1 - Math.pow(speedMS / maxSpeed, 1.63));
-  const drag = mix(1.04 + speedMS * .025, .11, gasAmt);
-  speedMS = clamp(speedMS + (acceleration - drag - 15.8 * brakeAmt) * dt, 0, maxSpeed);
+
+  // Reverse & Drive state machine (framerate-independent for 30Hz/60Hz/120Hz/240Hz):
+  // 1) Explicit Reverse gear (R key / mobile GEAR R toggle): GAS drives backwards up to -11.2 m/s, BRAKE stops.
+  // 2) Drive gear (D): GAS always drives forward smoothly from 0; BRAKE stops cleanly to 0, then holding S / BRAKE 0.26s auto-reverses.
+  if (reverseGear) {
+    autoReversing = false;
+    brakeHoldZero = 0;
+    const revGas = hasFuel ? gasAmt : 0;
+    throttle = revGas > .08;
+    braking = brakeAmt > .08;
+    if (speedMS > 0) {
+      speedMS = Math.max(0, speedMS - (2.0 + 16.2 * brakeAmt + 8 * revGas) * dt);
+    } else {
+      const absS = Math.abs(speedMS);
+      const revAccel = 5.6 * revGas * (1 - Math.pow(Math.min(absS, maxReverseSpeed) / maxReverseSpeed, 1.5));
+      const drag = mix(1.4 + absS * .08, .18, revGas);
+      speedMS = clamp(speedMS - revAccel * dt + (drag + 16.2 * brakeAmt) * dt, -maxReverseSpeed, 0);
+      if (revGas < .04 && Math.abs(speedMS) < .04) speedMS = 0;
+    }
+  } else {
+    const fwdGas = hasFuel ? gasAmt : 0;
+    if (fwdGas > .04) {
+      autoReversing = false;
+      brakeHoldZero = 0;
+      throttle = true;
+      braking = brakeAmt > .08;
+      if (speedMS < 0) {
+        speedMS = Math.min(0, speedMS + (16.5 * fwdGas + 14 * brakeAmt + 2.0) * dt);
+      } else {
+        const acceleration = 9.9 * fwdGas * (1 - Math.pow(speedMS / maxSpeed, 1.63));
+        const drag = mix(1.04 + speedMS * .025, .11, fwdGas);
+        speedMS = clamp(speedMS + (acceleration - drag - 16.2 * brakeAmt) * dt, 0, maxSpeed);
+      }
+    } else if (rawBrakePedal && !handbrake) {
+      if (speedMS > .05) {
+        autoReversing = false;
+        brakeHoldZero = 0;
+        throttle = false;
+        braking = true;
+        const drag = 1.04 + speedMS * .025;
+        speedMS = Math.max(0, speedMS - (drag + 16.2 * brakeAmt) * dt);
+      } else if (!autoReversing) {
+        speedMS = 0;
+        throttle = false;
+        braking = true;
+        if (hasFuel) {
+          brakeHoldZero += dt;
+          if (brakeHoldZero >= .26) {
+            autoReversing = true;
+            notice('REVERSE (R)', 1.2);
+          }
+        }
+      } else {
+        throttle = hasFuel;
+        braking = false;
+        if (hasFuel) {
+          const absS = Math.abs(speedMS);
+          const revAccel = 5.4 * brakeAmt * (1 - Math.pow(Math.min(absS, maxReverseSpeed) / maxReverseSpeed, 1.5));
+          speedMS = clamp(speedMS - revAccel * dt, -maxReverseSpeed, 0);
+        } else {
+          speedMS = Math.min(0, speedMS + 2.0 * dt);
+        }
+      }
+    } else {
+      autoReversing = false;
+      brakeHoldZero = 0;
+      throttle = false;
+      braking = handbrake;
+      if (speedMS > 0) {
+        const drag = 1.04 + speedMS * .025 + (handbrake ? 16.2 : 0);
+        speedMS = Math.max(0, speedMS - drag * dt);
+      } else if (speedMS < 0) {
+        const drag = 2.2 + Math.abs(speedMS) * .08 + (handbrake ? 16.2 : 0);
+        speedMS = Math.min(0, speedMS + drag * dt);
+      }
+      if (Math.abs(speedMS) < .03) speedMS = 0;
+    }
+  }
+
   longAccel = damp(longAccel, (speedMS - speedBefore) / dt, 9, dt);
 
+  const absSpeed = Math.abs(speedMS);
   const previousOffset = offset;
-  const highSpeed = smooth(24, 82, speedMS);
-  const steeringSpeed = mix(3.1, 5.7, smooth(0, 24, speedMS)) * mix(1, .54, highSpeed);
-  lateral = damp(lateral, steer * steeringSpeed * smooth(0, 8, speedMS),
-    Math.abs(steer) > .02 ? mix(9, 5.8, highSpeed) : 11, dt);
+  const highSpeed = smooth(24, 82, absSpeed);
+  const reverseSign = speedMS < -.05 ? -1 : 1;
+  const steer = -steerInput * reverseSign; // lateral +x is driver's left when moving forward
+  const steeringSpeed = speedMS < -.05
+    ? mix(2.2, 3.8, smooth(0, maxReverseSpeed, absSpeed))
+    : mix(3.2, 5.7, smooth(0, 24, absSpeed)) * mix(1, .54, highSpeed);
+  const steerGrip = smooth(0, speedMS < -.05 ? 1.5 : 4.2, absSpeed);
+  lateral = damp(lateral, steer * steeringSpeed * steerGrip,
+    Math.abs(steer) > .02 ? mix(9.5, 5.8, highSpeed) : 11, dt);
   offset += lateral * dt;
-  if (Math.abs(offset) > roadWidth - .83) {
-    offset = Math.sign(offset) * (roadWidth - .83);
-    if (Math.sign(lateral) === Math.sign(offset)) {
+
+  const leftEdge = roadWidth - .83;
+  const rightEdge = roadRightBound(worldZ);
+  if (offset > leftEdge) {
+    offset = leftEdge;
+    if (lateral > 0) {
       lateral = 0;
-      speedMS = Math.max(0, speedMS - 20 * dt);
-      if (speedMS > 9 && now - lastEdgeNotice > 1800) {
+      if (speedMS > 0) speedMS = Math.max(0, speedMS - 20 * dt);
+      if (absSpeed > 9 && now - lastEdgeNotice > 1800) {
+        notice('ROAD EDGE');
+        lastEdgeNotice = now;
+      }
+    }
+  } else if (offset < rightEdge) {
+    offset = rightEdge;
+    if (lateral < 0) {
+      lateral = 0;
+      if (speedMS > 0) speedMS = Math.max(0, speedMS - 18 * dt);
+      if (absSpeed > 9 && now - lastEdgeNotice > 1800) {
         notice('ROAD EDGE');
         lastEdgeNotice = now;
       }
@@ -739,30 +1281,62 @@ function updateDriving(dt, now) {
 
   const previousZ = worldZ;
   const travelled = speedMS * dt;
-  worldZ += travelled;
-  tripDistance += travelled;
+  worldZ = Math.max(runStartZ - 260, worldZ + travelled);
+  // High-water mark scoring: reversing or towing back NEVER adds distance until passing maxWorldZ!
+  if (worldZ > maxWorldZ) {
+    maxWorldZ = worldZ;
+    tripDistance = maxWorldZ - runStartZ;
+  }
   if (tripDistance - lastSavedTrip >= 100) saveScore(false);
   wheelsAngle = (wheelsAngle + travelled / .367) % (Math.PI * 2);
+
+  // Fuel consumption (~6.0 km full tank range at spirited highway cruise)
+  if (fuel > 0) {
+    const distBurn = Math.abs(travelled) * (.0145 + (throttle ? .0038 : 0));
+    const idleBurn = (throttle ? .09 : .028) * dt;
+    fuel = Math.max(0, fuel - distBurn - idleBurn);
+    if (fuel <= 25 && !lowFuelWarned) {
+      lowFuelWarned = true;
+      notice('LOW FUEL (25%) · WATCH FOR FUEL STATION', 2.6);
+    }
+    if (fuel <= 10 && !critFuelWarned) {
+      critFuelWarned = true;
+      notice('CRITICAL FUEL (10%) · PULL INTO NEXT STATION', 2.8);
+    }
+    if (fuel <= 0 && !outOfFuelWarned) {
+      outOfFuelWarned = true;
+      notice('OUT OF FUEL · COASTING TO A STOP', 3.0);
+    }
+  }
+
+  const offHighway = offset < -roadWidth - .4;
   for (const car of moveTraffic(dt, previousZ, previousOffset)) {
-    resolveTrafficContact(car, previousZ, previousOffset);
+    if (!offHighway) resolveTrafficContact(car, previousZ, previousOffset);
     if (state === 'crashed') return;
     const gap = car.z - worldZ;
-    if (gap < -75 || gap > 1510) car.z = Infinity;
+    if (gap < -120 || gap > 1510) car.z = Infinity;
   }
   refillTraffic();
 
-  const speedKmh = speedMS * 3.6;
-  const targetGear = speedKmh < 1 && !throttle ? 0 : Math.max(1,
-    shiftSpeeds.findIndex((shift, i) => i && (speedKmh < shift || i === 6)));
-  if (targetGear > gearIndex || (gearIndex > 0 && speedKmh < shiftSpeeds[gearIndex - 1] - 5) || !targetGear) {
-    gearIndex = targetGear;
+  const speedKmh = absSpeed * 3.6;
+  const isRev = reverseGear || autoReversing || speedMS < -.1;
+  if (isRev) {
+    gearIndex = -1;
+    const targetRpm = hasFuel ? mix(1100, 4400, clamp(absSpeed / maxReverseSpeed, 0, 1)) : 0;
+    revs = damp(revs, targetRpm, 10, dt);
+  } else {
+    const targetGear = speedKmh < 1 && !throttle ? 0 : Math.max(1,
+      shiftSpeeds.findIndex((shift, i) => i && (speedKmh < shift || i === 6)));
+    if (gearIndex < 0 || targetGear > gearIndex || (gearIndex > 0 && speedKmh < shiftSpeeds[gearIndex - 1] - 5) || !targetGear) {
+      gearIndex = targetGear;
+    }
+    const gearFloor = shiftSpeeds[Math.max(0, gearIndex - 1)];
+    const gearCeiling = shiftSpeeds[Math.max(1, gearIndex)];
+    const gearProgress = clamp((speedKmh - gearFloor) / (gearCeiling - gearFloor), 0, 1);
+    const startRpm = gearIndex === 1 ? 1350 : 5000;
+    const targetRpm = !hasFuel ? 0 : (gearIndex ? mix(startRpm, 7200, gearProgress) : 900);
+    revs = damp(revs, targetRpm, 10, dt);
   }
-  const gearFloor = shiftSpeeds[Math.max(0, gearIndex - 1)];
-  const gearCeiling = shiftSpeeds[Math.max(1, gearIndex)];
-  const gearProgress = clamp((speedKmh - gearFloor) / (gearCeiling - gearFloor), 0, 1);
-  const startRpm = gearIndex === 1 ? 1350 : 5000;
-  const targetRpm = gearIndex ? mix(startRpm, 7200, gearProgress) : 900;
-  revs = damp(revs, targetRpm, 10, dt);
 }
 
 function drawScene(dt, now) {
@@ -771,7 +1345,8 @@ function drawScene(dt, now) {
   const carX = center(z) + offset;
   const carY = roadSurfaceY(z);
   const roadYaw = yawAt(z);
-  const highSpeed = smooth(24, 82, speedMS);
+  const absSpd = Math.abs(speedMS);
+  const highSpeed = smooth(24, 82, absSpd);
   steerVis = damp(steerVis, steerInput, 12, dt);
 
   // Chassis suspension: damped springs for squat, dive and roll, plus road noise and impact shake.
@@ -786,13 +1361,13 @@ function drawScene(dt, now) {
   }
   shake = Math.max(0, shake - dt * 1.6);
   const shakeAmp = shake * shake;
-  const rough = state === 'playing' ? smooth(10, 60, speedMS) : 0;
+  const rough = state === 'playing' ? smooth(10, 60, absSpd) : 0;
   const noiseA = Math.sin(now * .043) + Math.sin(now * .0117 + 2.1) * .7;
   const noiseB = Math.sin(now * .051 + 1.7) + Math.sin(now * .0137) * .8;
   const pitch = susPitch + noiseA * .0011 * rough + Math.sin(now * .085) * .035 * shakeAmp;
   const roll = susRoll + noiseB * .0013 * rough + Math.sin(now * .067 + 1) * .045 * shakeAmp;
   const slopePitch = -Math.atan2(grade(z + 1) - grade(z - 1), 2);
-  const slip = clamp(lateral / (speedMS + 8), -.20, .20);
+  const slip = clamp(lateral / (absSpd + 8), -.20, .20);
   const chassis = r35.chassis && r35.chassis !== r35.body ? r35.chassis : null;
 
   r35.root.position.set(carX, carY, 0);
@@ -804,6 +1379,8 @@ function drawScene(dt, now) {
     r35.body.rotation.set(slopePitch + pitch, slip, roll);
   }
   if (r35.brakeLight) r35.brakeLight.emissiveIntensity = braking || state === 'crashed' ? 3.15 : 1.25;
+  const isRevGlow = reverseGear || autoReversing || speedMS < -.1;
+  if (r35.reverseLight) r35.reverseLight.emissiveIntensity = isRevGlow ? 3.2 : .12;
   r35.wheels?.forEach(wheel => {
     wheel.rotation.x = wheelsAngle;
     wheel.rotation.y = wheel.position.z > 0 ? clamp(-steerVis * .21 * mix(1, .55, highSpeed), -.2, .2) : 0;
@@ -812,26 +1389,48 @@ function drawScene(dt, now) {
   ui.wheelSvg.style.transform = `rotate(${(steerVis * 100).toFixed(1)}deg)`;
   for (const car of traffic) {
     const relativeZ = car.z - z;
-    car.root.visible = relativeZ > -100 && relativeZ < 1450;
+    car.root.visible = relativeZ > -140 && relativeZ < 1450;
     if (!car.root.visible) continue;
     car.root.position.set(center(car.z) + car.lane, roadSurfaceY(car.z), relativeZ);
     car.root.rotation.set(-Math.atan2(grade(car.z + 1) - grade(car.z - 1), 2), yawAt(car.z), 0);
   }
 
   const ready = state === 'ready';
-  const interior = !ready && camIndex === 1;
-  const hoodCam = !ready && camIndex === 2;
-  const bumperCam = !ready && camIndex === 3;
-  const heroWideCam = !ready && camIndex === 4;
+  const interior = !ready && !scenicMode && camIndex === 1;
+  const hoodCam = !ready && !scenicMode && camIndex === 2;
+  const bumperCam = !ready && !scenicMode && camIndex === 3;
+  const heroWideCam = !ready && !scenicMode && camIndex === 4;
   if (ready !== framedMenu) {
     framedMenu = ready;
     frameViewport();
   }
   r35.setCockpitMode ? r35.setCockpitMode(interior) : (r35.cockpit.visible = interior, r35.cabin.visible = !interior);
   if (r35.cabin) r35.cabin.visible = !interior && !hoodCam;
-  let desiredFov = 57 + speedMS * .14;
-  if (interior) {
-    r35.updateInterior?.(speedMS * 3.6, revs, gearIndex ? String(gearIndex) : 'N', steerVis);
+  const absSpeed = Math.abs(speedMS);
+  const gearLabel = gearIndex < 0 ? 'R' : (gearIndex ? String(gearIndex) : 'N');
+  let desiredFov = 57 + absSpeed * .14;
+  if (scenicMode && scenicSite) {
+    const drift = Math.sin(now * .00028) * .12;
+    const mode = scenicSite.camSide || 'ocean';
+    if (mode === 'viaduct') {
+      // Look past parked R35 back toward the illuminated Skyline Viaduct & gorge
+      const ang = roadYaw + 2.45 + drift + scenicOrbit;
+      cameraPosition.set(carX + Math.sin(ang) * 7.6, carY + 2.65 + scenicTilt * 2.2, Math.cos(ang) * 7.6);
+      cameraLook.set(carX - 5, carY + 1.5 - scenicTilt * 2, -45);
+    } else if (mode === 'valley') {
+      // Dramatic mountain ridge & valley vista over the R35
+      const ang = roadYaw + .72 + drift + scenicOrbit;
+      cameraPosition.set(carX + Math.sin(ang) * 7.8, carY + 2.85 + scenicTilt * 2.2, -Math.cos(ang) * 7.8);
+      cameraLook.set(carX - 18, carY + 2.2 - scenicTilt * 2, 34);
+    } else {
+      // Sunset Cliff Overlook: golden ocean sun-path & lighthouse behind the parked R35
+      const ang = roadYaw + 1.05 + drift + scenicOrbit;
+      cameraPosition.set(carX + Math.sin(ang) * 7.2, carY + 2.35 + scenicTilt * 2.1, -Math.cos(ang) * 7.2);
+      cameraLook.set(carX - 38, carY + 1.4 - scenicTilt * 2.2, 22);
+    }
+    desiredFov = 50;
+  } else if (interior) {
+    r35.updateInterior?.(absSpeed * 3.6, revs, gearLabel, steerVis);
     r35.root.updateMatrixWorld(true);
     const frame = r35.cockpit?.parent || r35.chassis || r35.body;
     cockpitPosition.set(-.425, 1.24, -.19);
@@ -879,7 +1478,7 @@ function drawScene(dt, now) {
     cameraLook.set(carX, carY + .78, -.08);
     desiredFov = mix(60, 51, wide);
   } else if (heroWideCam) {
-    const boost = speedMS / maxSpeed;
+    const boost = Math.max(0, speedMS) / maxSpeed;
     const trailing = 8.4 + boost * 2.2;
     const angle = roadYaw + .24 + orbit;
     chasePosition.set(carX - Math.sin(angle) * trailing,
@@ -890,9 +1489,9 @@ function drawScene(dt, now) {
       carY + mix(1.06, .82, orbitBlend) - tilt * .85, 13 * (1 - .75 * orbitBlend));
     cameraPosition.copy(chasePosition);
     cameraLook.copy(chaseLook);
-    desiredFov = 54 + speedMS * .10;
+    desiredFov = 54 + absSpeed * .10;
   } else {
-    const boost = speedMS / maxSpeed;
+    const boost = Math.max(0, speedMS) / maxSpeed;
     const trailing = 6.9 + boost * 2.65;
     const angle = roadYaw + orbit;
     chasePosition.set(carX - Math.sin(angle) * trailing,
@@ -924,15 +1523,22 @@ function drawScene(dt, now) {
 
 /* ---------- Input ---------- */
 const pressedKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft',
-  'ArrowDown', 'ArrowRight', 'Space', 'KeyC', 'KeyL', 'KeyM', 'KeyP', 'Escape']);
+  'ArrowDown', 'ArrowRight', 'Space', 'KeyC', 'KeyL', 'KeyM', 'KeyP', 'KeyR', 'KeyF', 'KeyE', 'KeyV', 'Escape']);
 addEventListener('keydown', event => {
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
   if (event.ctrlKey || event.metaKey || event.altKey || !pressedKeys.has(event.code)) return;
   if (state === 'playing' || event.code === 'Escape') event.preventDefault();
-  if (event.repeat && ['KeyC', 'KeyL', 'KeyM', 'KeyP', 'Escape'].includes(event.code)) return;
+  if (event.repeat && ['KeyC', 'KeyL', 'KeyM', 'KeyP', 'KeyR', 'KeyF', 'KeyE', 'KeyV', 'Escape'].includes(event.code)) return;
   if (event.code === 'Escape' && state === 'ready' && !ui.boardPanel.hidden) toggleBoard(false);
-  else if (event.code === 'KeyC') toggleCamera();
+  else if (scenicMode && (event.code === 'KeyV' || event.code === 'Escape')) exitScenicMode();
+  else if (event.code === 'KeyR') toggleReverseGear();
+  else if (event.code === 'KeyF' || event.code === 'KeyE') {
+    if (activeSpot?.type === 'fuel') startRefuel();
+    else if (activeSpot?.type === 'overlook') enterScenicMode(activeSpot);
+  } else if (event.code === 'KeyV') {
+    if (activeSpot?.type === 'overlook') enterScenicMode(activeSpot);
+  } else if (event.code === 'KeyC') toggleCamera();
   else if (event.code === 'KeyL') toggleCameraLock();
   else if (event.code === 'KeyM') toggleSound();
   else if (event.code === 'KeyP' || event.code === 'Escape') pauseDrive();
@@ -958,6 +1564,13 @@ surface.addEventListener('pointerdown', event => {
 });
 surface.addEventListener('pointermove', event => {
   if (!pointer || pointer.id !== event.pointerId) return;
+  if (scenicMode) {
+    scenicOrbit = clamp(scenicOrbit + (event.clientX - pointer.x) * .005, -1.6, 1.6);
+    scenicTilt = clamp(scenicTilt + (event.clientY - pointer.y) * .004, -.45, .55);
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    return;
+  }
   const sweep = camIndex === 1 ? 75 * Math.PI / 180
     : camIndex === 2 ? 55 * Math.PI / 180
     : camIndex === 3 ? 35 * Math.PI / 180
@@ -1100,8 +1713,8 @@ function driveSound() {
     oscillator.frequency.setTargetAtTime(engineHz * [1, 2, .499][i], now, .065);
   });
   audio.lowpass.frequency.setTargetAtTime(215 + revs * (throttle ? .17 : .082), now, .08);
-  audio.engine.gain.setTargetAtTime(active ? (throttle ? .158 : .058) : 0, now, .12);
-  audio.road.gain.setTargetAtTime(active ? smooth(7, maxSpeed, speedMS) * .22 : 0, now, .15);
+  audio.engine.gain.setTargetAtTime(active && fuel > 0 && !scenicMode ? (throttle ? .158 : .058) : 0, now, .12);
+  audio.road.gain.setTargetAtTime(active ? smooth(7, maxSpeed, Math.abs(speedMS)) * .22 : 0, now, .15);
 }
 
 function crashSound(volume = .30) {
@@ -1121,19 +1734,30 @@ function crashSound(volume = .30) {
 
 /* ---------- HUD + frame loop ---------- */
 function updateHud() {
-  const speedKmh = Math.round(speedMS * 3.6);
+  const absSpeed = Math.abs(speedMS);
+  const speedKmh = Math.round(absSpeed * 3.6);
+  const isRev = gearIndex < 0 || reverseGear || autoReversing || speedMS < -.1;
   ui.speed.textContent = String(speedKmh).padStart(3, '0');
-  ui.gear.textContent = gearIndex || 'N';
+  ui.gear.textContent = isRev ? 'R' : (gearIndex || 'N');
+  ui.gear.classList.toggle('rev', isRev);
   ui.rpm.textContent = `${(revs / 1000).toFixed(1)} x1000`;
-  ui.speedArc.setAttribute('stroke-dasharray', `${speedKmh / 310 * 100} 100`);
+  ui.speedArc.setAttribute('stroke-dasharray', `${Math.min(100, speedKmh / 310 * 100)} 100`);
   const lit = Math.round(revs / 7400 * rpmBars.length);
   rpmBars.forEach((bar, i) => bar.classList.toggle('on', i < lit));
   ui.distance.textContent = km(tripDistance);
   ui.best.textContent = km(Math.max(personalBest, tripDistance));
+  if (ui.fuelBar && ui.fuelPct && ui.fuelWrap) {
+    const pct = Math.max(0, Math.min(100, Math.round(fuel)));
+    ui.fuelBar.style.width = `${pct}%`;
+    ui.fuelPct.textContent = `${pct}%`;
+    ui.fuelWrap.classList.toggle('low', pct <= 25 && pct > 10);
+    ui.fuelWrap.classList.toggle('crit', pct <= 10);
+  }
   const gasPress = Math.round(gasAmt * 50) / 50;
   const brakePress = Math.round(brakeAmt * 50) / 50;
   if (gasPress !== lastGasPress) ui.pedalGas.style.setProperty('--press', String(lastGasPress = gasPress));
   if (brakePress !== lastBrakePress) ui.pedalBrake.style.setProperty('--press', String(lastBrakePress = brakePress));
+  updateSpotBar();
   if (state !== 'playing' && state !== 'paused') return;
   const route = routeAt(worldZ);
   if (route === lastRoute) return;
@@ -1196,6 +1820,19 @@ ui.pause.addEventListener('click', pauseDrive);
 ui.view.addEventListener('click', toggleCamera);
 ui.camLock?.addEventListener('click', toggleCameraLock);
 ui.sound.addEventListener('click', toggleSound);
+ui.gearToggle?.addEventListener('click', toggleReverseGear);
+ui.scenicExit?.addEventListener('click', exitScenicMode);
+ui.spotAction?.addEventListener('click', () => {
+  const mode = ui.spotAction.dataset.mode;
+  if (mode === 'refuel') startRefuel();
+  else if (mode === 'scenic' && activeSpot) enterScenicMode(activeSpot);
+  else if (mode === 'tow') recoverToFuelStation();
+});
+ui.spotAlt?.addEventListener('click', () => {
+  if (state === 'playing') endRun();
+});
+ui.retrySubmit?.addEventListener('click', () => submitPendingScore());
+ui.boardRetry?.addEventListener('click', () => refreshCloudBoard(true));
 ui.boardToggle.addEventListener('click', () => toggleBoard());
 ui.boardClose.addEventListener('click', () => { toggleBoard(false); ui.boardToggle.focus({ preventScroll: true }); });
 ui.changeName.addEventListener('click', () => {
@@ -1245,4 +1882,19 @@ refreshDriverUI();
 renderHearts();
 previewZone();
 menu('ready');
+if (new URLSearchParams(location.search).has('qa')) {
+  window.__qa = {
+    state: () => ({ state, worldZ, maxWorldZ, tripDistance, speedMS, offset, fuel, gearIndex, reverseGear, autoReversing, refueling, scenicMode, camIndex, cameraLocked, activeSpot: activeSpot?.id || null, hearts, cloudMode }),
+    warp(z, off = 0, spd = 0, fl = fuel) {
+      worldZ = z;
+      if (z > maxWorldZ) { maxWorldZ = z; tripDistance = maxWorldZ - runStartZ; }
+      offset = off;
+      speedMS = spd;
+      fuel = fl;
+      snapCamera = true;
+      seedTraffic();
+    },
+    endRunNow: () => endRun()
+  };
+}
 requestAnimationFrame(frameDrive);
