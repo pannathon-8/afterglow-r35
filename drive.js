@@ -1162,76 +1162,81 @@ function updateDriving(dt, now) {
   const hasFuel = fuel > 0;
   const speedBefore = speedMS;
 
-  // Reverse engagement logic:
+  // Reverse & Drive state machine (framerate-independent for 30Hz/60Hz/120Hz/240Hz):
   // 1) Explicit Reverse gear (R key / mobile GEAR R toggle): GAS drives backwards up to -11.2 m/s, BRAKE stops.
-  // 2) Drive gear: BRAKE stops cleanly to 0; holding S / BRAKE for 0.26s after full stop smoothly reverses.
+  // 2) Drive gear (D): GAS always drives forward smoothly from 0; BRAKE stops cleanly to 0, then holding S / BRAKE 0.26s auto-reverses.
   if (reverseGear) {
     autoReversing = false;
     brakeHoldZero = 0;
     const revGas = hasFuel ? gasAmt : 0;
     throttle = revGas > .08;
     braking = brakeAmt > .08;
-    const revAccel = 5.4 * revGas * (1 - Math.pow(Math.min(Math.abs(speedMS), maxReverseSpeed) / maxReverseSpeed, 1.5));
-    if (speedMS > .05) {
-      speedMS = Math.max(0, speedMS - (1.8 + 16 * brakeAmt + 8 * revGas) * dt);
+    if (speedMS > 0) {
+      speedMS = Math.max(0, speedMS - (2.0 + 16.2 * brakeAmt + 8 * revGas) * dt);
     } else {
-      const drag = mix(1.5 + Math.abs(speedMS) * .08, .2, revGas);
-      speedMS = clamp(speedMS + (-revAccel + drag + 16 * brakeAmt) * dt, -maxReverseSpeed, 0);
-      if (revGas < .04 && Math.abs(speedMS) < .06) speedMS = 0;
+      const absS = Math.abs(speedMS);
+      const revAccel = 5.6 * revGas * (1 - Math.pow(Math.min(absS, maxReverseSpeed) / maxReverseSpeed, 1.5));
+      const drag = mix(1.4 + absS * .08, .18, revGas);
+      speedMS = clamp(speedMS - revAccel * dt + (drag + 16.2 * brakeAmt) * dt, -maxReverseSpeed, 0);
+      if (revGas < .04 && Math.abs(speedMS) < .04) speedMS = 0;
     }
   } else {
-    if (speedMS > .2) {
+    const fwdGas = hasFuel ? gasAmt : 0;
+    if (fwdGas > .04) {
       autoReversing = false;
       brakeHoldZero = 0;
-      const fwdGas = hasFuel ? gasAmt : 0;
-      throttle = fwdGas > .08;
+      throttle = true;
       braking = brakeAmt > .08;
-      const acceleration = 9.9 * fwdGas * (1 - Math.pow(speedMS / maxSpeed, 1.63));
-      const drag = mix(1.04 + speedMS * .025, .11, fwdGas);
-      speedMS = clamp(speedMS + (acceleration - drag - 16.2 * brakeAmt) * dt, 0, maxSpeed);
-    } else if (speedMS < -.08 || autoReversing) {
-      // Currently auto-reversing while holding S / BRAKE
-      if (rawGas && hasFuel) {
-        autoReversing = false;
-        throttle = true;
-        braking = false;
-        speedMS = Math.min(maxSpeed, speedMS + 18 * gasAmt * dt);
-      } else if (rawBrakePedal && !handbrake && hasFuel) {
-        autoReversing = true;
-        throttle = true;
-        braking = false;
-        const revAccel = 5.2 * brakeAmt * (1 - Math.pow(Math.min(Math.abs(speedMS), maxReverseSpeed) / maxReverseSpeed, 1.5));
-        speedMS = clamp(speedMS - revAccel * dt, -maxReverseSpeed, 0);
+      if (speedMS < 0) {
+        speedMS = Math.min(0, speedMS + (16.5 * fwdGas + 14 * brakeAmt + 2.0) * dt);
       } else {
-        autoReversing = false;
-        throttle = false;
-        braking = handbrake;
-        const stopDecel = 2.4 + (handbrake ? 16 : 0);
-        speedMS = Math.min(0, speedMS + stopDecel * dt);
-        if (Math.abs(speedMS) < .05) speedMS = 0;
+        const acceleration = 9.9 * fwdGas * (1 - Math.pow(speedMS / maxSpeed, 1.63));
+        const drag = mix(1.04 + speedMS * .025, .11, fwdGas);
+        speedMS = clamp(speedMS + (acceleration - drag - 16.2 * brakeAmt) * dt, 0, maxSpeed);
       }
-    } else {
-      // Stopped at ~0 m/s in Drive
-      speedMS = 0;
-      if (rawGas && hasFuel) {
-        brakeHoldZero = 0;
+    } else if (rawBrakePedal && !handbrake) {
+      if (speedMS > .05) {
         autoReversing = false;
-        throttle = true;
-        braking = false;
-        speedMS = clamp(9.9 * gasAmt * dt, 0, maxSpeed);
-      } else if (rawBrakePedal && !handbrake && hasFuel) {
-        brakeHoldZero += dt;
+        brakeHoldZero = 0;
         throttle = false;
         braking = true;
-        if (brakeHoldZero >= .26) {
-          autoReversing = true;
-          notice('REVERSE (R)', 1.2);
+        const drag = 1.04 + speedMS * .025;
+        speedMS = Math.max(0, speedMS - (drag + 16.2 * brakeAmt) * dt);
+      } else if (!autoReversing) {
+        speedMS = 0;
+        throttle = false;
+        braking = true;
+        if (hasFuel) {
+          brakeHoldZero += dt;
+          if (brakeHoldZero >= .26) {
+            autoReversing = true;
+            notice('REVERSE (R)', 1.2);
+          }
         }
       } else {
-        brakeHoldZero = 0;
-        throttle = false;
-        braking = brakeAmt > .08;
+        throttle = hasFuel;
+        braking = false;
+        if (hasFuel) {
+          const absS = Math.abs(speedMS);
+          const revAccel = 5.4 * brakeAmt * (1 - Math.pow(Math.min(absS, maxReverseSpeed) / maxReverseSpeed, 1.5));
+          speedMS = clamp(speedMS - revAccel * dt, -maxReverseSpeed, 0);
+        } else {
+          speedMS = Math.min(0, speedMS + 2.0 * dt);
+        }
       }
+    } else {
+      autoReversing = false;
+      brakeHoldZero = 0;
+      throttle = false;
+      braking = handbrake;
+      if (speedMS > 0) {
+        const drag = 1.04 + speedMS * .025 + (handbrake ? 16.2 : 0);
+        speedMS = Math.max(0, speedMS - drag * dt);
+      } else if (speedMS < 0) {
+        const drag = 2.2 + Math.abs(speedMS) * .08 + (handbrake ? 16.2 : 0);
+        speedMS = Math.min(0, speedMS + drag * dt);
+      }
+      if (Math.abs(speedMS) < .03) speedMS = 0;
     }
   }
 
